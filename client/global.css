@@ -1,0 +1,518 @@
+/** @import must precede all other statements */
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Noto+Kufi+Arabic:wght@400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /**
+   * Tailwind CSS theme
+   * tailwind.config.ts expects the following color variables to be expressed as HSL values.
+   * A different format will require also updating the theme in tailwind.config.ts.
+  */
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@keyframes announcement-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.announcement-track {
+  animation: announcement-marquee 24s linear infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .announcement-track { animation: none; }
+}
+
+@layer components {
+  .admin-input {
+    @apply mt-2 w-full border border-[#1c2822]/15 bg-white/60 px-3 py-3 text-[12px] font-normal outline-none transition focus:border-[#d4775c] focus:bg-white;
+  }
+
+  .admin-shell {
+    background:
+      radial-gradient(circle at top left, rgba(216, 199, 153, 0.22), transparent 30%),
+      linear-gradient(180deg, #f5f1ea 0%, #eeece1 100%);
+  }
+
+  .dashboard-topbar {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.4rem 1.6rem;
+    background: rgba(255, 255, 255, 0.68);
+    border: 1px solid rgba(28, 40, 34, 0.08);
+    border-radius: 24px;
+    box-shadow: 0 18px 38px rgba(28, 40, 34, 0.06);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+  }
+
+  .dashboard-kicker {
+    margin-bottom: 0.7rem;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    color: #d4775c;
+  }
+
+  .dashboard-title {
+    font-size: clamp(2.2rem, 3vw, 4rem);
+    line-height: 0.95;
+    letter-spacing: -0.05em;
+    color: #1c2822;
+  }
+
+  .dashboard-subtitle {
+    margin-top: 0.85rem;
+    font-size: 12px;
+    color: rgba(28, 40, 34, 0.66);
+  }
+
+  .dashboard-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .dashboard-toast {
+    border-radius: 999px;
+    background: #1c2822;
+    color: #f6f3ee;
+    padding: 0.75rem 1rem;
+    font-size: 11px;
+    box-shadow: 0 12px 24px rgba(28, 40, 34, 0.12);
+  }
+
+  .dashboard-action-button {
+    border: 1px solid rgba(28, 40, 34, 0.15);
+    background: #fff;
+    color: #1c2822;
+    border-radius: 999px;
+    padding: 0.8rem 1.2rem;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .admin-layout {
+    display: grid;
+    gap: 1.5rem;
+    align-items: start;
+  }
+
+  .admin-sidebar {
+    background: linear-gradient(180deg, #1c2822 0%, #0f1513 100%);
+    color: #f6f3ee;
+    padding: 1.25rem;
+    border-radius: 22px;
+    box-shadow: 0 18px 45px rgba(28, 40, 34, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .admin-tab {
+    width: 100%;
+    color: rgba(246, 243, 238, 0.72);
+    text-align: start;
+    border-radius: 14px;
+    transition: background-color 180ms ease, color 180ms ease, transform 180ms ease;
+  }
+
+  .admin-tab:hover,
+  .admin-tab-active {
+    background: rgba(216, 199, 153, 0.12);
+    color: #f6f3ee;
+    transform: translateX(2px);
+  }
+
+  .admin-tab-active {
+    box-shadow: inset 2px 0 #d4775c;
+  }
+
+  .dashboard-stat-card {
+    background: linear-gradient(180deg, #fffefb 0%, #f8f5ef 100%);
+    border: 1px solid rgba(28, 40, 34, 0.08);
+    box-shadow: 0 14px 28px rgba(28, 40, 34, 0.05);
+    border-radius: 22px;
+    padding: 1.25rem 1.15rem;
+  }
+
+  .stat-label {
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    color: rgba(28, 40, 34, 0.5);
+  }
+
+  .stat-value {
+    margin-top: 0.8rem;
+    font-size: clamp(1.7rem, 2vw, 2.4rem);
+    line-height: 1;
+    letter-spacing: -0.05em;
+    color: #1c2822;
+  }
+
+  .admin-panel,
+  .admin-workspace [class~="bg-[#f6f3ee]"] {
+    background: linear-gradient(180deg, #fffdf9 0%, #f7f4ee 100%);
+    border: 1px solid rgba(28, 40, 34, 0.08);
+    border-radius: 22px;
+    box-shadow: 0 18px 32px rgba(28, 40, 34, 0.05);
+  }
+
+  .quick-action {
+    border: 1px solid rgba(28, 40, 34, 0.08);
+    border-radius: 16px;
+    background: #fff;
+    color: #1c2822;
+    transition: border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+  }
+
+  .quick-action:hover {
+    border-color: rgba(212, 119, 92, 0.5);
+    box-shadow: 0 10px 18px rgba(212, 119, 92, 0.12);
+    transform: translateY(-1px);
+  }
+
+  .sidebar-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-bottom: 1.1rem;
+  }
+
+  .sidebar-group-title {
+    padding: 0.4rem 0.55rem 0.6rem;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(216, 199, 153, 0.7);
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .panel-header h2 {
+    font-size: 1.2rem;
+    letter-spacing: -0.03em;
+    color: #1c2822;
+  }
+
+  .panel-header span {
+    font-size: 10px;
+    color: rgba(28, 40, 34, 0.45);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .sales-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.9rem;
+  }
+
+  .sales-metric {
+    padding: 1rem;
+    border-radius: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    min-height: 94px;
+    border: 1px solid rgba(28, 40, 34, 0.06);
+  }
+
+  .sales-metric span {
+    font-size: 10px;
+    color: rgba(28, 40, 34, 0.6);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .sales-metric strong {
+    font-size: 1.2rem;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    color: #1c2822;
+  }
+
+  .sales-metric-gold { background: linear-gradient(135deg, rgba(216, 199, 153, 0.24), rgba(255, 255, 255, 1)); }
+  .sales-metric-dark { background: linear-gradient(135deg, rgba(28, 40, 34, 0.96), rgba(51, 63, 57, 0.92)); }
+  .sales-metric-dark span,
+  .sales-metric-dark strong { color: #f7f4ee; }
+  .sales-metric-accent { background: linear-gradient(135deg, rgba(212, 119, 92, 0.18), rgba(255, 255, 255, 1)); }
+  .sales-metric-soft { background: linear-gradient(135deg, rgba(240, 235, 223, 0.95), rgba(255, 255, 255, 1)); }
+
+  .top-product-box {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    margin-top: 1.25rem;
+    padding: 1rem;
+    border: 1px solid rgba(28, 40, 34, 0.07);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.7);
+  }
+
+  .top-product-image {
+    width: 92px;
+    height: 92px;
+    border-radius: 18px;
+    background-size: cover;
+    background-position: center;
+    border: 1px solid rgba(28, 40, 34, 0.08);
+  }
+
+  .top-product-label {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(28, 40, 34, 0.5);
+  }
+
+  .top-product-box h3 {
+    margin-top: 0.35rem;
+    font-size: 1.05rem;
+    letter-spacing: -0.03em;
+    color: #1c2822;
+  }
+
+  .top-product-box p {
+    margin-top: 0.4rem;
+    font-size: 11px;
+    color: rgba(28, 40, 34, 0.65);
+  }
+
+  .top-product-box strong {
+    color: #1c2822;
+  }
+
+  .performance-list,
+  .coupon-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+  }
+
+  .mini-list-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+
+  .mini-labels {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    font-size: 11px;
+    color: rgba(28, 40, 34, 0.7);
+  }
+
+  .mini-labels small {
+    color: rgba(28, 40, 34, 0.5);
+  }
+
+  .mini-bar {
+    width: 100%;
+    height: 8px;
+    border-radius: 999px;
+    background: rgba(28, 40, 34, 0.08);
+    overflow: hidden;
+  }
+
+  .mini-bar span {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #d8c799 0%, #d4775c 100%);
+  }
+
+  .coupon-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.85rem 0.9rem;
+    border: 1px solid rgba(28, 40, 34, 0.07);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.65);
+  }
+
+  .coupon-code {
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    color: #1c2822;
+    text-transform: uppercase;
+  }
+
+  .coupon-meta {
+    margin-top: 0.25rem;
+    color: rgba(28, 40, 34, 0.5);
+    font-size: 10px;
+  }
+
+  .coupon-report-strip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding-top: 0.8rem;
+    margin-top: 0.8rem;
+    border-top: 1px solid rgba(28, 40, 34, 0.08);
+    font-size: 11px;
+    color: rgba(28, 40, 34, 0.7);
+  }
+
+  .coupon-report-strip strong {
+    color: #1c2822;
+  }
+
+  @media (min-width: 1024px) {
+    .admin-layout {
+      grid-template-columns: 220px minmax(0, 1fr);
+      gap: 2rem;
+    }
+
+    .admin-sidebar {
+      position: sticky;
+      top: 1.5rem;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .dashboard-topbar {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-family: Optima, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  :where(h1, h2, h3, h4, h5, h6, p, span, a, button, label, td, th) {
+    font-family: Optima, "Helvetica Neue", Arial, sans-serif !important;
+  }
+
+  ::selection {
+    background: #d4775c;
+    color: #f6f3ee;
+  }
+
+  a, button {
+    transition: color 180ms ease, background-color 180ms ease, opacity 180ms ease;
+  }
+
+  :where(p, span, li, h1, h2, h3, h4, h5, h6, a, button, label, td, th) {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  pre,
+  code {
+    overflow-x: auto;
+    white-space: pre;
+  }
+}
