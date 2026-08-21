@@ -113,6 +113,10 @@
 }
 
 @layer components {
+  .section-heading {
+    font-family: "Times New Roman", Times, serif !important;
+  }
+
   .admin-input {
     @apply mt-2 w-full border border-[#1c2822]/15 bg-white/60 px-3 py-3 text-[12px] font-normal outline-none transition focus:border-[#d4775c] focus:bg-white;
   }

@@ -16,6 +16,7 @@ export default {
       fontFamily: {
         sans: ["Noto Kufi Arabic", "DM Sans", "sans-serif"],
         serif: ["Playfair Display", "Noto Kufi Arabic", "serif"],
+        times: ["Times New Roman", "serif"],
       },
       colors: {
         border: "hsl(var(--border))",
