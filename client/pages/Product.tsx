@@ -3,7 +3,7 @@ import { Check, Heart, MessageCircle, Minus, Plus, ShoppingBag, Truck } from "lu
 import { Link, useParams } from "react-router-dom";
 import { getCategoryName, getProductName, getProductPrice, ProductCard, useStore } from "@/components/store/StoreLayout";
 
-const sizes = ["XXL", "XL", "L", "M", "S"];
+const sizes = ["S", "M", "L", "XL", "XXL"];
 
 export default function Product() {
   const { id } = useParams();
@@ -17,7 +17,7 @@ export default function Product() {
   const [quantity, setQuantity] = useState(1);
   const [selectedSize, setSelectedSize] = useState("L");
   const availableColors = product.colors?.length ? product.colors : ["#eeeae0", "#202320"];
-  const availableSizes = product.sizes?.length ? product.sizes : sizes;
+  const availableSizes = product.sizes === undefined ? sizes : product.sizes;
   const [selectedColor, setSelectedColor] = useState(availableColors[0]);
   const [added, setAdded] = useState(false);
   const index = catalog.indexOf(product);
