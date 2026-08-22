@@ -500,6 +500,10 @@
     font-family: Optima, "Helvetica Neue", Arial, sans-serif !important;
   }
 
+  .store-logo {
+    font-family: "Times New Roman", serif !important;
+  }
+
   ::selection {
     background: #d4775c;
     color: #f6f3ee;
