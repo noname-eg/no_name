@@ -80,6 +80,8 @@ export default function Checkout() {
       `Address: ${order.address}`,
       order.notes ? `Notes: ${order.notes}` : "",
       `Payment: ${paymentLabel?.label || paymentMethod}`,
+      order.transferNumber ? `Transfer number: ${order.transferNumber}` : "",
+      order.receipt ? "Transfer receipt: attached to the order summary" : "",
       "Items:",
       ...order.orderItems!.map((item) => `- ${item.name} x${item.quantity} — ${item.total.toLocaleString("en-US")} EGP`),
       `Shipping: ${shipping === 0 ? "Free" : `${shipping} EGP`}`,

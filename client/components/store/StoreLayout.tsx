@@ -183,7 +183,11 @@ export function StoreLayout({ children }: { children: ReactNode }) {
   const addProduct = (product: StoreProduct) => setCatalog((current) => [...current, product]);
   const updateProduct = (product: StoreProduct) => setCatalog((current) => current.map((item) => item.id === product.id ? product : item));
   const deleteProduct = (id: string) => setCatalog((current) => current.filter((item) => item.id !== id));
-  const addOrder = (order: StoreOrder) => setOrders((current) => { const next = [order, ...current]; localStorage.setItem("no-name-orders", JSON.stringify(next)); return next; });
+  const addOrder = (order: StoreOrder) => {
+    const next = [order, ...orders];
+    localStorage.setItem("no-name-orders", JSON.stringify(next));
+    setOrders(next);
+  };
   const updateSiteSettings = (settings: SiteSettings) => setSiteSettings(settings);
   const updateSection = (key: string, section: SectionSettings) => setSections((current) => ({ ...current, [key]: section }));
   const updatePageSettings = (settings: PageSettings) => setPageSettings(settings);
