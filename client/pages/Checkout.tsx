@@ -87,11 +87,11 @@ export default function Checkout() {
       `Shipping: ${shipping === 0 ? "Free" : `${shipping} EGP`}`,
       `Total: ${total.toLocaleString("en-US")} EGP`,
     ].filter(Boolean).join("\n");
-    const summaryTab = window.open(`/order-summary/${order.id}`, "_blank", "noopener,noreferrer");
-    if (!summaryTab) navigate(`/order-summary/${order.id}`);
     const whatsapp = getSalesWhatsAppUrl(siteSettings);
     const separator = whatsapp.includes("?") ? "&" : "?";
-    window.open(`${whatsapp}${separator}text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+    const whatsappUrl = `${whatsapp}${separator}text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+    navigate(`/order-summary/${order.id}`);
   };
 
   if (cartItems.length === 0) {
