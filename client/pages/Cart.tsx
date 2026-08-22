@@ -82,7 +82,7 @@ export default function Cart() {
             )}
             <div className="flex justify-between"><span className="text-black/55">{isEnglish ? "Shipping" : "الشحن"}</span><span>{shipping === 0 ? (isEnglish ? "Free" : "مجاني") : `${shipping} ${isEnglish ? "EGP" : "ج.م"}`}</span></div>
           </div>
-          <div className="flex justify-between py-5 text-sm font-bold"><span>{isEnglish ? "Total" : "الإجمالي"}</span><span>{total.toLocaleString("en-US")} {isEnglish ? "EGP" : "ج.م"}</span></div><button className="w-full bg-[#1c2822] py-4 text-[11px] font-bold text-white">{isEnglish ? "Checkout" : "إتمام الشراء"}</button><Link to="/shop" className="mt-5 block text-center text-[11px] underline underline-offset-4">{isEnglish ? "Continue shopping" : "متابعة التسوق"}</Link></aside>
+          <div className="flex justify-between py-5 text-sm font-bold"><span>{isEnglish ? "Total" : "الإجمالي"}</span><span>{total.toLocaleString("en-US")} {isEnglish ? "EGP" : "ج.م"}</span></div><Link to="/checkout" className="block w-full bg-[#1c2822] py-4 text-center text-[11px] font-bold text-white">{isEnglish ? "Checkout" : "إتمام الشراء"}</Link><Link to="/shop" className="mt-5 block text-center text-[11px] underline underline-offset-4">{isEnglish ? "Continue shopping" : "متابعة التسوق"}</Link></aside>
       </div>}
     </section>
   );

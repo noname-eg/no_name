@@ -11,6 +11,7 @@ import Shop from "./pages/Shop";
 import About, { InfoPage } from "./pages/About";
 import Product from "./pages/Product";
 import Cart from "./pages/Cart";
+import Checkout from "./pages/Checkout";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import { StoreLayout } from "./components/store/StoreLayout";
@@ -32,6 +33,7 @@ const App = () => (
           <Route path="/contact" element={<InfoPage type="contact" />} />
           <Route path="/product/:id" element={<Product />} />
           <Route path="/cart" element={<Cart />} />
+          <Route path="/checkout" element={<Checkout />} />
           <Route path="/admin" element={<Admin />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

@@ -110,7 +110,7 @@ export const categories = [
 
 export type StoreProduct = Omit<typeof products[number], "nameEn"> & { nameEn?: string; description?: string; descriptionEn?: string; stock?: number; lowStockThreshold?: number; colors?: string[]; sizes?: string[]; video?: string; images?: string[] };
 export type CartItem = { product: StoreProduct; quantity: number };
-export type SiteSettings = { announcement: string; accent: string; heroTitle?: string; heroDescription?: string; discoverVideos?: string[]; socialLinks?: { instagram?: string; facebook?: string; youtube?: string; whatsapp?: string; tiktok?: string } };
+export type SiteSettings = { announcement: string; accent: string; heroTitle?: string; heroDescription?: string; walletNumber?: string; instapayNumber?: string; discoverVideos?: string[]; socialLinks?: { instagram?: string; facebook?: string; youtube?: string; whatsapp?: string; tiktok?: string } };
 export type SectionSettings = { title: string; description: string; image: string; video?: string };
 export type PageSettings = {
   about: { titleAr: string; titleEn: string; introAr: string; introEn: string; beliefTitleAr: string; beliefTitleEn: string; bodyAr: string; bodyEn: string; body2Ar: string; body2En: string; image1: string; image2: string };
@@ -118,9 +118,11 @@ export type PageSettings = {
   contact: { titleAr: string; titleEn: string; contentAr: string; contentEn: string; recipientEmail: string };
 };
 export type Coupon = { code: string; discount: number; uses: number; active: boolean };
-export type StoreOrder = { id: string; date: string; total: number; status: "جديد" | "قيد التجهيز" | "مكتمل"; items: number };
+export type PaymentMethod = "cod" | "wallet" | "instapay";
+export type StoreOrderItem = { name: string; quantity: number; unitPrice: number; total: number };
+export type StoreOrder = { id: string; date: string; total: number; status: "جديد" | "قيد التجهيز" | "مكتمل"; items: number; customerName?: string; phone?: string; address?: string; notes?: string; paymentMethod?: PaymentMethod; transferNumber?: string; receipt?: string; orderItems?: StoreOrderItem[] };
 export type Language = "ar" | "en";
-type StoreContextValue = { cart: number; cartItems: CartItem[]; catalog: StoreProduct[]; siteSettings: SiteSettings; sections: Record<string, SectionSettings>; pageSettings: PageSettings; coupons: Coupon[]; orders: StoreOrder[]; addToCart: (product: StoreProduct) => void; removeFromCart: (id: string) => void; updateQuantity: (id: string, quantity: number) => void; addProduct: (product: StoreProduct) => void; updateProduct: (product: StoreProduct) => void; deleteProduct: (id: string) => void; updateSiteSettings: (settings: SiteSettings) => void; updateSection: (key: string, section: SectionSettings) => void; updatePageSettings: (settings: PageSettings) => void; addCoupon: (coupon: Coupon) => void; deleteCoupon: (code: string) => void; liked: number[]; toggleLike: (index: number) => void; language: Language; toggleLanguage: () => void };
+type StoreContextValue = { cart: number; cartItems: CartItem[]; catalog: StoreProduct[]; siteSettings: SiteSettings; sections: Record<string, SectionSettings>; pageSettings: PageSettings; coupons: Coupon[]; orders: StoreOrder[]; addToCart: (product: StoreProduct) => void; removeFromCart: (id: string) => void; updateQuantity: (id: string, quantity: number) => void; clearCart: () => void; addProduct: (product: StoreProduct) => void; updateProduct: (product: StoreProduct) => void; deleteProduct: (id: string) => void; addOrder: (order: StoreOrder) => void; updateSiteSettings: (settings: SiteSettings) => void; updateSection: (key: string, section: SectionSettings) => void; updatePageSettings: (settings: PageSettings) => void; addCoupon: (coupon: Coupon) => void; deleteCoupon: (code: string) => void; liked: number[]; toggleLike: (index: number) => void; language: Language; toggleLanguage: () => void };
 const StoreContext = createContext<StoreContextValue | null>(null);
 export const useStore = () => {
   const context = useContext(StoreContext);
@@ -143,7 +145,7 @@ export function StoreLayout({ children }: { children: ReactNode }) {
   };
   const [pageSettings, setPageSettings] = useState<PageSettings>(() => { try { const saved = JSON.parse(localStorage.getItem("no-name-pages") || "null") as Partial<PageSettings> | null; return { ...defaultPageSettings, ...saved, about: { ...defaultPageSettings.about, ...saved?.about }, shipping: { ...defaultPageSettings.shipping, ...saved?.shipping }, contact: { ...defaultPageSettings.contact, ...saved?.contact } }; } catch { return defaultPageSettings; } });
   const [coupons, setCoupons] = useState<Coupon[]>(() => { try { return JSON.parse(localStorage.getItem("no-name-coupons") || "[]"); } catch { return []; } });
-  const [orders] = useState<StoreOrder[]>(() => { try { return JSON.parse(localStorage.getItem("no-name-orders") || "[]"); } catch { return []; } });
+  const [orders, setOrders] = useState<StoreOrder[]>(() => { try { return JSON.parse(localStorage.getItem("no-name-orders") || "[]"); } catch { return []; } });
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [liked, setLiked] = useState<number[]>([]);
   const [email, setEmail] = useState("");
@@ -166,15 +168,18 @@ export function StoreLayout({ children }: { children: ReactNode }) {
   useEffect(() => { localStorage.setItem("no-name-sections", JSON.stringify(sections)); }, [sections]);
   useEffect(() => { localStorage.setItem("no-name-pages", JSON.stringify(pageSettings)); }, [pageSettings]);
   useEffect(() => { localStorage.setItem("no-name-coupons", JSON.stringify(coupons)); }, [coupons]);
+  useEffect(() => { localStorage.setItem("no-name-orders", JSON.stringify(orders)); }, [orders]);
   useEffect(() => { window.scrollTo(0, 0); }, [location.pathname, location.search]);
   const addToCart = (product: typeof products[number]) => setCartItems((current) => { const existing = current.find((item) => item.product.id === product.id); return existing ? current.map((item) => item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item) : [...current, { product, quantity: 1 }]; });
   const removeFromCart = (id: string) => setCartItems((current) => current.filter((item) => item.product.id !== id));
   const updateQuantity = (id: string, quantity: number) => setCartItems((current) => quantity < 1 ? current.filter((item) => item.product.id !== id) : current.map((item) => item.product.id === id ? { ...item, quantity } : item));
+  const clearCart = () => setCartItems([]);
   const cart = cartItems.reduce((total, item) => total + item.quantity, 0);
   const toggleLike = (index: number) => setLiked((current) => current.includes(index) ? current.filter((item) => item !== index) : [...current, index]);
   const addProduct = (product: StoreProduct) => setCatalog((current) => [...current, product]);
   const updateProduct = (product: StoreProduct) => setCatalog((current) => current.map((item) => item.id === product.id ? product : item));
   const deleteProduct = (id: string) => setCatalog((current) => current.filter((item) => item.id !== id));
+  const addOrder = (order: StoreOrder) => setOrders((current) => { const next = [order, ...current]; localStorage.setItem("no-name-orders", JSON.stringify(next)); return next; });
   const updateSiteSettings = (settings: SiteSettings) => setSiteSettings(settings);
   const updateSection = (key: string, section: SectionSettings) => setSections((current) => ({ ...current, [key]: section }));
   const updatePageSettings = (settings: PageSettings) => setPageSettings(settings);
@@ -182,7 +187,7 @@ export function StoreLayout({ children }: { children: ReactNode }) {
   const deleteCoupon = (code: string) => setCoupons((current) => current.filter((coupon) => coupon.code !== code));
   const nav = (path: string) => { setMenuOpen(false); navigate(path); };
 
-  return <StoreContext.Provider value={{ cart, cartItems, catalog, siteSettings, sections, pageSettings, coupons, orders, addToCart, removeFromCart, updateQuantity, addProduct, updateProduct, deleteProduct, updateSiteSettings, updateSection, updatePageSettings, addCoupon, deleteCoupon, liked, toggleLike, language, toggleLanguage }}>
+  return <StoreContext.Provider value={{ cart, cartItems, catalog, siteSettings, sections, pageSettings, coupons, orders, addToCart, removeFromCart, updateQuantity, clearCart, addProduct, updateProduct, deleteProduct, addOrder, updateSiteSettings, updateSection, updatePageSettings, addCoupon, deleteCoupon, liked, toggleLike, language, toggleLanguage }}>
     <main dir={isEnglish ? "ltr" : "rtl"} className="min-h-screen overflow-hidden bg-white text-[#171717]">
       <div className="fixed inset-x-0 top-0 z-40 h-[30px] overflow-hidden border-b border-[#1c2822]/10 bg-[#f4f2e9] px-5 py-1.5 text-center text-[8px] tracking-[0.08em] text-[#1c2822]/75 sm:text-[9px]"><div className="announcement-track flex w-max items-center gap-16 whitespace-nowrap"><span>{siteSettings.announcement || (isEnglish ? "Free Shipping on Orders Over 3,000 EGP" : "شحن مجاني للطلبات فوق ٣٠٠٠ جنيه")}</span><span>{isEnglish ? "Enjoy Up to 50% Off · Welcome Anew" : "خصم يصل إلى ٥٠٪ · أهلاً بكِ"}</span><span>{siteSettings.announcement || (isEnglish ? "Free Shipping on Orders Over 3,000 EGP" : "شحن مجاني للطلبات فوق ٣٠٠٠ جنيه")}</span><span>{siteSettings.announcement || (isEnglish ? "Free Shipping on Orders Over 3,000 EGP" : "شحن مجاني للطلبات فوق ٣٠٠٠ جنيه")}</span><span>{isEnglish ? "Enjoy Up to 50% Off · Welcome Anew" : "خصم يصل إلى ٥٠٪ · أهلاً بكِ"}</span><span>{siteSettings.announcement || (isEnglish ? "Free Shipping on Orders Over 3,000 EGP" : "شحن مجاني للطلبات فوق ٣٠٠٠ جنيه")}</span></div></div>
       <header className={`z-30 ${isHome ? (isScrolled ? "fixed inset-x-0 top-[30px] border-b border-black/10 bg-[#eeece1] text-[#171717] shadow-sm" : "fixed inset-x-0 top-[30px] bg-transparent text-white") : "sticky top-[30px] border-b border-black/10 bg-[#eeece1] text-[#171717]"}`}>
