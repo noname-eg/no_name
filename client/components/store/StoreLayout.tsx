@@ -100,7 +100,7 @@ const productColors: Record<string, string[]> = {
   جاكيتات: ["#222222", "#d2c7b6", "#7d8a76"],
   جينز: ["#91b6d6", "#45627a", "#1e2937"],
 };
-export const getProductColors = (product: StoreProduct) => productColors[product.category] || ["#222222", "#d8d1c2"];
+export const getProductColors = (product: StoreProduct) => product.colors?.length ? product.colors : productColors[product.category] || ["#222222", "#d8d1c2"];
 
 export const categories = [
   { label: "فساتين", image: "https://images.unsplash.com/photo-1566174053879-31528523f8ae?auto=format&fit=crop&w=850&q=85" },
