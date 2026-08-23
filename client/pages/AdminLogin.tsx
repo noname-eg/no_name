@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 export const ADMIN_AUTH_KEY = "no-name-admin-auth";
 const ADMIN_USERNAME = "admin";
@@ -10,10 +10,6 @@ export default function AdminLogin() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-
-  if (sessionStorage.getItem(ADMIN_AUTH_KEY) === "true") {
-    return <Navigate to="/admin" replace />;
-  }
 
   const submitLogin = (event: FormEvent) => {
     event.preventDefault();
