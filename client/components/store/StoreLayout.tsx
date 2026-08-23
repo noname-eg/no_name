@@ -92,13 +92,14 @@ export const getCategoryName = (category: string, language: Language) => {
   const normalized = normalizeCategory(category);
   return normalized;
 };
-export const getProductPrice = (product: StoreProduct, language: Language) => language === "en" ? product.price.replace("ج.م", "L.E") : product.price;
 export const getProductBadge = (product: StoreProduct) => product.badge?.trim() || product.tag?.trim() || "";
 export const getProductDiscount = (product: StoreProduct) => {
   if (typeof product.originalPrice !== "number" || typeof product.salePrice !== "number" || product.salePrice >= product.originalPrice) return null;
   return Math.round((1 - product.salePrice / product.originalPrice) * 100);
 };
+export const getProductUnitPrice = (product: StoreProduct) => getProductDiscount(product) === null ? product.numericPrice : product.salePrice!;
 export const formatProductAmount = (amount: number, language: Language) => `${amount.toLocaleString("en-US")} ${language === "en" ? "L.E" : "ج.م"}`;
+export const getProductPrice = (product: StoreProduct, language: Language) => formatProductAmount(getProductUnitPrice(product), language);
 const productColors: Record<string, string[]> = {
   أطقم: ["#d8d1c2", "#6f756b", "#222222"],
   توبس: ["#f4f1e8", "#222222", "#9b9b92"],
@@ -125,14 +126,14 @@ export type PageSettings = {
 };
 export type Coupon = { code: string; discount: number; uses: number; active: boolean };
 export type PaymentMethod = "cod" | "wallet" | "instapay";
-export type StoreOrderItem = { name: string; quantity: number; unitPrice: number; total: number };
-export type StoreOrder = { id: string; date: string; total: number; status: "جديد" | "قيد التجهيز" | "مكتمل"; items: number; customerName?: string; phone?: string; address?: string; notes?: string; paymentMethod?: PaymentMethod; transferNumber?: string; receipt?: string; orderItems?: StoreOrderItem[] };
+export type StoreOrderItem = { name: string; quantity: number; unitPrice: number; total: number; originalUnitPrice?: number; discountAmount?: number };
+export type StoreOrder = { id: string; date: string; total: number; subtotal?: number; discountAmount?: number; shippingAmount?: number; couponCode?: string; status: "جديد" | "قيد التجهيز" | "مكتمل"; items: number; customerName?: string; phone?: string; address?: string; notes?: string; paymentMethod?: PaymentMethod; transferNumber?: string; receipt?: string; orderItems?: StoreOrderItem[] };
 export type Language = "ar" | "en";
 export const getSalesWhatsAppUrl = (settings: SiteSettings) => {
   const number = settings.salesWhatsappNumber?.replace(/\D/g, "");
   return settings.salesWhatsappUrl?.trim() || (number ? `https://wa.me/${number}` : settings.socialLinks?.whatsapp || "https://wa.me/201553003040");
 };
-type StoreContextValue = { cart: number; cartItems: CartItem[]; catalog: StoreProduct[]; siteSettings: SiteSettings; sections: Record<string, SectionSettings>; pageSettings: PageSettings; coupons: Coupon[]; orders: StoreOrder[]; addToCart: (product: StoreProduct) => void; removeFromCart: (id: string) => void; updateQuantity: (id: string, quantity: number) => void; clearCart: () => void; addProduct: (product: StoreProduct) => void; updateProduct: (product: StoreProduct) => void; deleteProduct: (id: string) => void; addOrder: (order: StoreOrder) => void; updateSiteSettings: (settings: SiteSettings) => void; updateSection: (key: string, section: SectionSettings) => void; updatePageSettings: (settings: PageSettings) => void; addCoupon: (coupon: Coupon) => void; deleteCoupon: (code: string) => void; liked: number[]; toggleLike: (index: number) => void; language: Language; toggleLanguage: () => void };
+type StoreContextValue = { cart: number; cartItems: CartItem[]; catalog: StoreProduct[]; siteSettings: SiteSettings; sections: Record<string, SectionSettings>; pageSettings: PageSettings; coupons: Coupon[]; appliedCouponCode: string; setAppliedCouponCode: (code: string) => void; orders: StoreOrder[]; addToCart: (product: StoreProduct) => void; removeFromCart: (id: string) => void; updateQuantity: (id: string, quantity: number) => void; clearCart: () => void; addProduct: (product: StoreProduct) => void; updateProduct: (product: StoreProduct) => void; deleteProduct: (id: string) => void; addOrder: (order: StoreOrder) => void; updateSiteSettings: (settings: SiteSettings) => void; updateSection: (key: string, section: SectionSettings) => void; updatePageSettings: (settings: PageSettings) => void; addCoupon: (coupon: Coupon) => void; deleteCoupon: (code: string) => void; liked: number[]; toggleLike: (index: number) => void; language: Language; toggleLanguage: () => void };
 const StoreContext = createContext<StoreContextValue | null>(null);
 export const useStore = () => {
   const context = useContext(StoreContext);
@@ -157,6 +158,7 @@ export function StoreLayout({ children }: { children: ReactNode }) {
   const [coupons, setCoupons] = useState<Coupon[]>(() => { try { return JSON.parse(localStorage.getItem("no-name-coupons") || "[]"); } catch { return []; } });
   const [orders, setOrders] = useState<StoreOrder[]>(() => { try { return JSON.parse(localStorage.getItem("no-name-orders") || "[]"); } catch { return []; } });
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [appliedCouponCode, setAppliedCouponCode] = useState("");
   const [liked, setLiked] = useState<number[]>([]);
   const [email, setEmail] = useState("");
   const [subscribed, setSubscribed] = useState(false);
@@ -183,7 +185,7 @@ export function StoreLayout({ children }: { children: ReactNode }) {
   const addToCart = (product: typeof products[number]) => setCartItems((current) => { const existing = current.find((item) => item.product.id === product.id); return existing ? current.map((item) => item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item) : [...current, { product, quantity: 1 }]; });
   const removeFromCart = (id: string) => setCartItems((current) => current.filter((item) => item.product.id !== id));
   const updateQuantity = (id: string, quantity: number) => setCartItems((current) => quantity < 1 ? current.filter((item) => item.product.id !== id) : current.map((item) => item.product.id === id ? { ...item, quantity } : item));
-  const clearCart = () => setCartItems([]);
+  const clearCart = () => { setCartItems([]); setAppliedCouponCode(""); };
   const cart = cartItems.reduce((total, item) => total + item.quantity, 0);
   const toggleLike = (index: number) => setLiked((current) => current.includes(index) ? current.filter((item) => item !== index) : [...current, index]);
   const addProduct = (product: StoreProduct) => setCatalog((current) => [...current, product]);
@@ -201,7 +203,7 @@ export function StoreLayout({ children }: { children: ReactNode }) {
   const deleteCoupon = (code: string) => setCoupons((current) => current.filter((coupon) => coupon.code !== code));
   const nav = (path: string) => { setMenuOpen(false); navigate(path); };
 
-  return <StoreContext.Provider value={{ cart, cartItems, catalog, siteSettings, sections, pageSettings, coupons, orders, addToCart, removeFromCart, updateQuantity, clearCart, addProduct, updateProduct, deleteProduct, addOrder, updateSiteSettings, updateSection, updatePageSettings, addCoupon, deleteCoupon, liked, toggleLike, language, toggleLanguage }}>
+  return <StoreContext.Provider value={{ cart, cartItems, catalog, siteSettings, sections, pageSettings, coupons, appliedCouponCode, setAppliedCouponCode, orders, addToCart, removeFromCart, updateQuantity, clearCart, addProduct, updateProduct, deleteProduct, addOrder, updateSiteSettings, updateSection, updatePageSettings, addCoupon, deleteCoupon, liked, toggleLike, language, toggleLanguage }}>
     <main dir={isEnglish ? "ltr" : "rtl"} className="min-h-screen overflow-x-clip bg-white text-[#171717]">
       <div className="fixed inset-x-0 top-0 z-40 h-[30px] overflow-hidden border-b border-[#1c2822]/10 bg-[#f4f2e9] px-5 py-1.5 text-center text-[8px] tracking-[0.08em] text-[#1c2822]/75 sm:text-[9px]"><div className="announcement-track flex w-max items-center gap-16 whitespace-nowrap"><span>{siteSettings.announcement || (isEnglish ? "Free Shipping on Orders Over 3,000 EGP" : "شحن مجاني للطلبات فوق ٣٠٠٠ جنيه")}</span><span>{isEnglish ? "Enjoy Up to 50% Off · Welcome Anew" : "خصم يصل إلى ٥٠٪ · أهلاً بكِ"}</span><span>{siteSettings.announcement || (isEnglish ? "Free Shipping on Orders Over 3,000 EGP" : "شحن مجاني للطلبات فوق ٣٠٠٠ جنيه")}</span><span>{siteSettings.announcement || (isEnglish ? "Free Shipping on Orders Over 3,000 EGP" : "شحن مجاني للطلبات فوق ٣٠٠٠ جنيه")}</span><span>{isEnglish ? "Enjoy Up to 50% Off · Welcome Anew" : "خصم يصل إلى ٥٠٪ · أهلاً بكِ"}</span><span>{siteSettings.announcement || (isEnglish ? "Free Shipping on Orders Over 3,000 EGP" : "شحن مجاني للطلبات فوق ٣٠٠٠ جنيه")}</span></div></div>
       <header className={`z-30 ${isHome ? (isScrolled ? "fixed inset-x-0 top-[30px] border-b border-black/10 bg-[#eeece1] text-[#171717] shadow-sm" : "fixed inset-x-0 top-[30px] bg-transparent text-white") : "sticky top-[30px] border-b border-black/10 bg-[#eeece1] text-[#171717]"}`}>
