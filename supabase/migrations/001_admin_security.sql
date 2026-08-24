@@ -1,3 +1,5 @@
+create extension if not exists pgcrypto;
+
 create table if not exists public.admin_users (
   id uuid primary key default gen_random_uuid(),
   username text not null unique,

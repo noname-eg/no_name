@@ -276,5 +276,7 @@ export function registerAuthRoutes(app: Express) {
     }
   });
 
-  app.use("/api/admin/manage", requireAdmin);
+  app.get("/api/admin/check", requireAdmin, (req, res) => {
+    res.json({ authenticated: true, user: { id: req.admin!.id, role: req.admin!.role } });
+  });
 }

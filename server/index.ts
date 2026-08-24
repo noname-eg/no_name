@@ -2,22 +2,27 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import { handleDemo } from "./routes/demo";
+import { registerAuthRoutes } from "./auth";
 
 export function createServer() {
   const app = express();
 
-  // Middleware
-  app.use(cors());
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
+  app.disable("x-powered-by");
+  app.use(cors(process.env.APP_ORIGIN ? { origin: process.env.APP_ORIGIN, credentials: true } : undefined));
+  app.use(express.json({ limit: "1mb" }));
+  app.use(express.urlencoded({ extended: true, limit: "1mb" }));
+  app.use((_req, res, next) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Referrer-Policy", "same-origin");
+    next();
+  });
 
-  // Example API routes
   app.get("/api/ping", (_req, res) => {
-    const ping = process.env.PING_MESSAGE ?? "ping";
-    res.json({ message: ping });
+    res.json({ message: "ok" });
   });
 
   app.get("/api/demo", handleDemo);
+  registerAuthRoutes(app);
 
   return app;
 }

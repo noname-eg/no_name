@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BarChart3, ImagePlus, LayoutDashboard, Palette, Plus, Save, Settings, Trash2, Upload, X } from "lucide-react";
+import { BarChart3, ImagePlus, LayoutDashboard, LogOut, Palette, Plus, Save, Settings, Trash2, Upload, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useStore, type PageSettings, type SectionSettings, type SiteSettings, type StoreProduct } from "@/components/store/StoreLayout";
 
@@ -76,6 +76,10 @@ export default function Admin() {
   const sales = orders.reduce((total, order) => total + order.total, 0);
   const currentSection: SectionSettings = sections[sectionKey] || { title: "", description: "", image: "" };
   const notify = () => { setSaved(true); window.setTimeout(() => setSaved(false), 2200); };
+  const logout = async () => {
+    await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
+    navigate("/admin/login", { replace: true });
+  };
   const updateField = <K extends keyof StoreProduct>(field: K, value: StoreProduct[K]) => setForm((current) => ({ ...current, [field]: value }));
   const updateColor = (index: number, value: string) => setForm((current) => ({ ...current, colors: (current.colors || []).map((color, colorIndex) => colorIndex === index ? value : color) }));
   const addColor = () => setForm((current) => ({ ...current, colors: [...(current.colors || []), "#222222"] }));
@@ -171,7 +175,7 @@ export default function Admin() {
           </div>
           <div className="dashboard-actions">
             {saved && <div className="dashboard-toast">{isEnglish ? "Saved successfully" : "تم الحفظ بنجاح"}</div>}
-            <button type="button" onClick={() => navigate("/")} className="dashboard-action-button">{isEnglish ? "View site" : "عرض الموقع"}</button>
+            <button type="button" onClick={() => navigate("/")} className="dashboard-action-button">{isEnglish ? "View site" : "عرض الموقع"}</button><button type="button" onClick={logout} className="dashboard-action-button flex items-center gap-2"><LogOut size={14} />{isEnglish ? "Sign out" : "تسجيل الخروج"}</button>
           </div>
         </div>
 
