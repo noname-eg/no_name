@@ -30,10 +30,23 @@ const loginSchema = z.object({
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
 
 function getSupabaseConfig() {
-  const url = process.env.SUPABASE_URL?.replace(/\/$/, "");
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceRoleKey) throw new Error("Supabase admin authentication is not configured");
-  return { url, serviceRoleKey };
+  const rawUrl = process.env.SUPABASE_URL?.trim();
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  if (!rawUrl || !serviceRoleKey) throw new Error("Supabase admin authentication is not configured");
+
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(rawUrl);
+  } catch {
+    throw new Error("SUPABASE_URL must be a valid Supabase project URL");
+  }
+
+  const hasPath = parsedUrl.pathname.split("/").some(Boolean);
+  if ((parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") || hasPath || parsedUrl.search || parsedUrl.hash) {
+    throw new Error("SUPABASE_URL must contain only the Supabase project URL, without /rest/v1");
+  }
+
+  return { url: parsedUrl.origin, serviceRoleKey };
 }
 
 async function supabaseRequest<T>(path: string, init: RequestInit = {}): Promise<T> {

@@ -34,10 +34,21 @@ if (!username) {
   process.exit(1);
 }
 
-const supabaseUrl = process.env.SUPABASE_URL?.replace(/\/$/, "");
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-if (!supabaseUrl || !serviceRoleKey) {
+const rawSupabaseUrl = process.env.SUPABASE_URL?.trim();
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+if (!rawSupabaseUrl || !serviceRoleKey) {
   console.error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required.");
+  process.exit(1);
+}
+
+let supabaseUrl: string;
+try {
+  const parsedUrl = new URL(rawSupabaseUrl);
+  const hasPath = parsedUrl.pathname.split("/").some(Boolean);
+  if ((parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") || hasPath || parsedUrl.search || parsedUrl.hash) throw new Error();
+  supabaseUrl = parsedUrl.origin;
+} catch {
+  console.error("SUPABASE_URL must be the project URL without /rest/v1.");
   process.exit(1);
 }
 
