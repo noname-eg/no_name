@@ -53,7 +53,6 @@ export default function Shop() {
   return (
     <section className="mx-auto max-w-[1240px] px-5 pb-24 pt-16 lg:px-8 lg:pt-20">
       <div className="border-b border-[#1c2822]/15 pb-10 text-center">
-        <p className="mb-4 text-[10px] font-bold tracking-[0.2em] text-[#d4775c]">THE COLLECTION</p>
         <h1 className="font-serif text-5xl tracking-[-0.05em] sm:text-7xl">{displayTitle}</h1>
         <p className="mx-auto mt-5 max-w-[430px] text-[13px] leading-8 text-[#1c2822]/60">{displayDescription}</p>
       </div>
