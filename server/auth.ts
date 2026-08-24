@@ -48,8 +48,8 @@ async function supabaseRequest<T>(path: string, init: RequestInit = {}): Promise
     },
   });
   if (!response.ok) throw new Error(`Supabase request failed with status ${response.status}`);
-  if (response.status === 204) return undefined as T;
-  return response.json() as Promise<T>;
+  const body = await response.text();
+  return body ? JSON.parse(body) as T : undefined as T;
 }
 
 export async function hashPassword(password: string) {

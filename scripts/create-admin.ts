@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { stdin as input, stdout as output } from "node:process";
 import { hashPassword } from "../server/auth";
 
@@ -7,14 +8,14 @@ function readSecret(prompt: string) {
     let value = "";
     const onData = (chunk: Buffer | string) => {
       for (const character of String(chunk)) {
-        if (character === "\\u0003") process.exit(130);
-        if (character === "\\r" || character === "\\n") {
+        if (character === "\u0003") process.exit(130);
+        if (character === "\r" || character === "\n") {
           input.setRawMode?.(false);
           input.pause();
           input.off("data", onData);
-          output.write("\\n");
+          output.write("\n");
           resolve(value);
-        } else if (character === "\\u007f") {
+        } else if (character === "\u007f") {
           value = value.slice(0, -1);
         } else {
           value += character;
@@ -48,13 +49,13 @@ if (password.length < 12 || password !== confirmation) {
   process.exit(1);
 }
 
-const response = await fetch(`${supabaseUrl}/rest/v1/admin_users`, {
+const response = await fetch(`${supabaseUrl}/rest/v1/admin_users?on_conflict=username`, {
   method: "POST",
   headers: {
     apikey: serviceRoleKey,
     Authorization: `Bearer ${serviceRoleKey}`,
     "Content-Type": "application/json",
-    Prefer: "return=minimal",
+    Prefer: "resolution=merge-duplicates,return=minimal",
   },
   body: JSON.stringify({ username, password_hash: await hashPassword(password), role: "admin", is_active: true }),
 });
