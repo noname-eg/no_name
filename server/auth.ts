@@ -49,7 +49,7 @@ function getSupabaseConfig() {
   return { url: parsedUrl.origin, serviceRoleKey };
 }
 
-async function supabaseRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+export async function supabaseRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const { url, serviceRoleKey } = getSupabaseConfig();
   const response = await fetch(`${url}/rest/v1/${path}`, {
     ...init,

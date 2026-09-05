@@ -156,7 +156,7 @@ export function StoreLayout({ children }: { children: ReactNode }) {
   };
   const [pageSettings, setPageSettings] = useState<PageSettings>(() => { try { const saved = JSON.parse(localStorage.getItem("no-name-pages") || "null") as Partial<PageSettings> | null; return { ...defaultPageSettings, ...saved, about: { ...defaultPageSettings.about, ...saved?.about }, shipping: { ...defaultPageSettings.shipping, ...saved?.shipping }, contact: { ...defaultPageSettings.contact, ...saved?.contact } }; } catch { return defaultPageSettings; } });
   const [coupons, setCoupons] = useState<Coupon[]>(() => { try { return JSON.parse(localStorage.getItem("no-name-coupons") || "[]"); } catch { return []; } });
-  const [orders, setOrders] = useState<StoreOrder[]>(() => { try { return JSON.parse(localStorage.getItem("no-name-orders") || "[]"); } catch { return []; } });
+  const [orders, setOrders] = useState<StoreOrder[]>([]);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [appliedCouponCode, setAppliedCouponCode] = useState("");
   const [liked, setLiked] = useState<number[]>([]);
@@ -171,7 +171,56 @@ export function StoreLayout({ children }: { children: ReactNode }) {
     if (location.pathname !== "/shop") return false;
     return new URLSearchParams(location.search).toString() === new URLSearchParams(query).toString();
   };
-  useEffect(() => { localStorage.setItem("no-name-products", JSON.stringify(catalog)); }, [catalog]);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/products")
+      .then((response) => response.ok ? response.json() : null)
+      .then((data: { products?: StoreProduct[] } | null) => {
+        if (!cancelled && data?.products?.length) setCatalog(data.products.map((product) => ({ ...product, stock: product.stock ?? 0, lowStockThreshold: product.lowStockThreshold ?? 3 })));
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/store-settings")
+      .then((response) => response.ok ? response.json() : null)
+      .then((data: { settings?: Partial<SiteSettings> } | null) => {
+        if (!cancelled && data?.settings) setSiteSettings((current) => ({ ...current, ...data.settings, socialLinks: { ...current.socialLinks, ...data.settings?.socialLinks } }));
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/sections")
+      .then((response) => response.ok ? response.json() : null)
+      .then((data: { sections?: Record<string, SectionSettings> } | null) => {
+        if (!cancelled && data?.sections && Object.keys(data.sections).length) setSections((current) => ({ ...current, ...data.sections }));
+      })
+      .catch(() => undefined);
+    fetch("/api/pages")
+      .then((response) => response.ok ? response.json() : null)
+      .then((data: { pages?: Partial<PageSettings> } | null) => {
+        if (!cancelled && data?.pages) setPageSettings((current) => ({ ...current, ...data.pages }));
+      })
+      .catch(() => undefined);
+    fetch("/api/coupons")
+      .then((response) => response.ok ? response.json() : null)
+      .then((data: { coupons?: Coupon[] } | null) => {
+        if (!cancelled && data?.coupons) setCoupons(data.coupons);
+      })
+      .catch(() => undefined);
+    fetch("/api/admin/orders", { credentials: "include" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data: { orders?: Array<Record<string, unknown>> } | null) => {
+        if (!cancelled && data?.orders) setOrders(data.orders.map((order) => ({
+          id: String(order.order_number || order.id), date: String(order.created_at), total: Number(order.total), subtotal: Number(order.subtotal), discountAmount: Number(order.discount_amount), shippingAmount: Number(order.shipping_amount), couponCode: order.coupon_code ? String(order.coupon_code) : undefined, status: order.status === "completed" ? "مكتمل" : order.status === "processing" ? "قيد التجهيز" : "جديد", items: 0, customerName: String(order.customer_name || ""), phone: String(order.phone || ""), address: String(order.address || ""), notes: order.notes ? String(order.notes) : undefined, paymentMethod: order.payment_method as PaymentMethod,
+        })));
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
   useEffect(() => { const handleScroll = () => setIsScrolled(window.scrollY > 12); handleScroll(); window.addEventListener("scroll", handleScroll, { passive: true }); return () => window.removeEventListener("scroll", handleScroll); }, []);
   useEffect(() => { setCatalog((current) => current.filter((product) => product.id !== "check-print-set")); }, []);
   useEffect(() => { localStorage.setItem("no-name-language", language); localStorage.setItem("no-name-language-version", "2"); document.documentElement.lang = language; document.documentElement.dir = isEnglish ? "ltr" : "rtl"; }, [language, isEnglish]);
@@ -180,7 +229,6 @@ export function StoreLayout({ children }: { children: ReactNode }) {
   useEffect(() => { localStorage.setItem("no-name-sections", JSON.stringify(sections)); }, [sections]);
   useEffect(() => { localStorage.setItem("no-name-pages", JSON.stringify(pageSettings)); }, [pageSettings]);
   useEffect(() => { localStorage.setItem("no-name-coupons", JSON.stringify(coupons)); }, [coupons]);
-  useEffect(() => { localStorage.setItem("no-name-orders", JSON.stringify(orders)); }, [orders]);
   useEffect(() => { window.scrollTo(0, 0); }, [location.pathname, location.search]);
   const addToCart = (product: typeof products[number]) => setCartItems((current) => { const existing = current.find((item) => item.product.id === product.id); return existing ? current.map((item) => item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item) : [...current, { product, quantity: 1 }]; });
   const removeFromCart = (id: string) => setCartItems((current) => current.filter((item) => item.product.id !== id));
@@ -191,11 +239,7 @@ export function StoreLayout({ children }: { children: ReactNode }) {
   const addProduct = (product: StoreProduct) => setCatalog((current) => [...current, product]);
   const updateProduct = (product: StoreProduct) => setCatalog((current) => current.map((item) => item.id === product.id ? product : item));
   const deleteProduct = (id: string) => setCatalog((current) => current.filter((item) => item.id !== id));
-  const addOrder = (order: StoreOrder) => {
-    const next = [order, ...orders];
-    localStorage.setItem("no-name-orders", JSON.stringify(next));
-    setOrders(next);
-  };
+  const addOrder = (order: StoreOrder) => setOrders((current) => [order, ...current]);
   const updateSiteSettings = (settings: SiteSettings) => setSiteSettings(settings);
   const updateSection = (key: string, section: SectionSettings) => setSections((current) => ({ ...current, [key]: section }));
   const updatePageSettings = (settings: PageSettings) => setPageSettings(settings);
