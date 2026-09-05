@@ -94,8 +94,18 @@ create table if not exists public.coupons (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.customer_profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  full_name text,
+  phone text,
+  address text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.orders (
   id uuid primary key default gen_random_uuid(),
+  customer_id uuid references auth.users(id) on delete set null,
   order_number text not null unique,
   customer_name text not null,
   phone text not null,
@@ -129,6 +139,7 @@ create index if not exists products_category_active_idx on public.products (cate
 create index if not exists orders_status_created_idx on public.orders (status, created_at desc);
 create index if not exists order_items_order_idx on public.order_items (order_id);
 
+alter table public.customer_profiles enable row level security;
 alter table public.products enable row level security;
 alter table public.site_settings enable row level security;
 alter table public.site_sections enable row level security;
@@ -137,7 +148,7 @@ alter table public.coupons enable row level security;
 alter table public.orders enable row level security;
 alter table public.order_items enable row level security;
 
-revoke all on table public.products, public.site_settings, public.site_sections, public.page_settings, public.coupons, public.orders, public.order_items from anon, authenticated;
+revoke all on table public.customer_profiles, public.products, public.site_settings, public.site_sections, public.page_settings, public.coupons, public.orders, public.order_items from anon, authenticated;
 
 create or replace function public.create_store_order(
   p_customer_name text,
@@ -240,3 +251,7 @@ $$;
 revoke all on function public.create_store_order(text, text, text, text, text, text, text, text, text, jsonb) from public, anon, authenticated;
 
 grant execute on function public.create_store_order(text, text, text, text, text, text, text, text, text, jsonb) to service_role;
+
+insert into storage.buckets (id, name, public)
+values ('receipts', 'receipts', false)
+on conflict (id) do update set public = false;

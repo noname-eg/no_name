@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { BarChart3, ImagePlus, LayoutDashboard, LogOut, Palette, Plus, Save, Settings, Trash2, Upload, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useStore, type PageSettings, type SectionSettings, type SiteSettings, type StoreProduct } from "@/components/store/StoreLayout";
+import { exportLegacyStoreData, importLegacyStoreData } from "@/lib/store-migration";
 
 const categories = ["Sets", "Blouses / shirts", "Skirts / pants", "Denims", "Dresses"];
 const categoryLabels: Record<string, string> = { Sets: "Sets", "Blouses / shirts": "Blouses / shirts", "Skirts / pants": "Skirts / pants", Denims: "Denims", Dresses: "Dresses" };
@@ -82,6 +83,15 @@ export default function Admin() {
     await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
     navigate("/admin/login", { replace: true });
   };
+  const importData = async (file: File) => {
+    try {
+      const result = await importLegacyStoreData(file);
+      window.alert(`${result.imported.products} products and ${result.imported.coupons} coupons imported. ${result.ordersSkipped} old orders skipped.`);
+      window.location.reload();
+    } catch {
+      window.alert(isEnglish ? "Unable to import legacy data." : "تعذر استيراد البيانات القديمة.");
+    }
+  };
   const updateField = <K extends keyof StoreProduct>(field: K, value: StoreProduct[K]) => setForm((current) => ({ ...current, [field]: value }));
   const updateColor = (index: number, value: string) => setForm((current) => ({ ...current, colors: (current.colors || []).map((color, colorIndex) => colorIndex === index ? value : color) }));
   const updateImage = (index: number, value: string) => {
@@ -97,8 +107,8 @@ export default function Admin() {
   const updateDiscoverVideo = (index: number, value: string) => setSettings((current) => { const discoverVideos = [...(current.discoverVideos || [])]; while (discoverVideos.length < 4) discoverVideos.push(""); discoverVideos[index] = value; return { ...current, discoverVideos }; });
   const startNewProduct = () => { setForm(emptyProduct); setSizesInput((emptyProduct.sizes || []).join(", ")); setImagesInput(emptyProduct.images || [emptyProduct.image]); setEditing(false); setActiveTab("products"); window.scrollTo(0, 0); };
   const editProduct = (product: StoreProduct) => { const images = product.images?.length ? [...product.images] : [product.image]; setForm({ ...product, image: images[0] || product.image, images, colors: product.colors?.length ? product.colors : ["#222222"], sizes: product.sizes || [] }); setSizesInput((product.sizes || []).join(", ")); setImagesInput(images); setEditing(true); setActiveTab("products"); window.scrollTo(0, 0); };
-  const removeProduct = (id: string) => { if (window.confirm(isEnglish ? "Delete this product?" : "هل تريدين حذف هذا المنتج؟")) { deleteProduct(id); if (form.id === id) { setForm(emptyProduct); setEditing(false); } notify(); } };
-  const submitProduct = (event: React.FormEvent) => {
+  const removeProduct = async (id: string) => { if (window.confirm(isEnglish ? "Delete this product?" : "هل تريدين حذف هذا المنتج؟")) { try { await deleteProduct(id); if (form.id === id) { setForm(emptyProduct); setEditing(false); } notify(); } catch { window.alert(isEnglish ? "Unable to save changes." : "تعذر حفظ التغييرات."); } } };
+  const submitProduct = async (event: React.FormEvent) => {
     event.preventDefault();
     const originalPrice = Number(form.originalPrice || form.numericPrice);
     const enteredSalePrice = Number(form.salePrice || 0);
@@ -119,21 +129,21 @@ export default function Admin() {
       image: imagesInput[0] || form.image,
       images: imagesInput.filter(Boolean),
     };
-    if (editing) updateProduct(product); else addProduct(product);
+    try { if (editing) await updateProduct(product); else await addProduct(product); } catch { window.alert(isEnglish ? "Unable to save product." : "تعذر حفظ المنتج."); return; }
     setForm(emptyProduct);
     setSizesInput((emptyProduct.sizes || []).join(", "));
     setImagesInput(emptyProduct.images || [emptyProduct.image]);
     setEditing(false);
     notify();
   };
-  const saveSettings = (event: React.FormEvent) => { event.preventDefault(); updateSiteSettings(settings); notify(); };
-  const saveSection = (event: React.FormEvent) => { event.preventDefault(); updateSection(sectionKey, currentSection); notify(); };
+  const saveSettings = async (event: React.FormEvent) => { event.preventDefault(); try { await updateSiteSettings(settings); notify(); } catch { window.alert(isEnglish ? "Unable to save settings." : "تعذر حفظ الإعدادات."); } };
+  const saveSection = async (event: React.FormEvent) => { event.preventDefault(); try { await updateSection(sectionKey, currentSection); notify(); } catch { window.alert(isEnglish ? "Unable to save section." : "تعذر حفظ القسم."); } };
   const currentPage = pageDraft[pageKey] as Record<string, string>;
   const updatePageField = (field: string, value: string) => setPageDraft((current) => ({ ...current, [pageKey]: { ...(current[pageKey] as Record<string, string>), [field]: value } } as PageSettings));
-  const savePage = (event: React.FormEvent) => { event.preventDefault(); updatePageSettings(pageDraft); notify(); };
+  const savePage = async (event: React.FormEvent) => { event.preventDefault(); try { await updatePageSettings(pageDraft); notify(); } catch { window.alert(isEnglish ? "Unable to save pages." : "تعذر حفظ الصفحات."); } };
   const updateSectionField = (field: keyof SectionSettings, value: string) => updateSection(sectionKey, { ...currentSection, [field]: value });
-  const createCoupon = (event: React.FormEvent) => { event.preventDefault(); const code = coupon.code.trim().toUpperCase(); if (!code) return; addCoupon({ code, discount: Number(coupon.discount), uses: 0, active: true }); setCoupon({ code: "", discount: 10 }); notify(); };
-  const removeCoupon = (code: string) => { if (window.confirm(isEnglish ? "Delete this coupon?" : "هل تريدين حذف هذا الكوبون؟")) { deleteCoupon(code); notify(); } };
+  const createCoupon = async (event: React.FormEvent) => { event.preventDefault(); const code = coupon.code.trim().toUpperCase(); if (!code) return; try { await addCoupon({ code, discount: Number(coupon.discount), uses: 0, active: true }); setCoupon({ code: "", discount: 10 }); notify(); } catch { window.alert(isEnglish ? "Unable to create coupon." : "تعذر إنشاء الكوبون."); } };
+  const removeCoupon = async (code: string) => { if (window.confirm(isEnglish ? "Delete this coupon?" : "هل تريدين حذف هذا الكوبون؟")) { try { await deleteCoupon(code); notify(); } catch { window.alert(isEnglish ? "Unable to delete coupon." : "تعذر حذف الكوبون."); } } };
   const pageFields = pageKey === "about" ? ["titleAr", "titleEn", "introAr", "introEn", "beliefTitleAr", "beliefTitleEn", "bodyAr", "bodyEn", "body2Ar", "body2En", "image1", "image2"] : pageKey === "contact" ? ["titleAr", "titleEn", "contentAr", "contentEn", "recipientEmail"] : ["titleAr", "titleEn", "contentAr", "contentEn"];
   const pageLabel = (field: string) => field === "image1" ? (isEnglish ? "About image 1" : "صورة About الأولى") : field === "image2" ? (isEnglish ? "About image 2" : "صورة About الثانية") : field === "recipientEmail" ? (isEnglish ? "Recipient email" : "البريد المستلم") : field.endsWith("Ar") ? `${isEnglish ? "Arabic" : "العربية"} ${field.replace("Ar", "")}` : `${isEnglish ? "English" : "الإنجليزية"} ${field.replace("En", "")}`;
   const tabs = [
@@ -188,7 +198,7 @@ export default function Admin() {
           </div>
           <div className="dashboard-actions">
             {saved && <div className="dashboard-toast">{isEnglish ? "Saved successfully" : "تم الحفظ بنجاح"}</div>}
-            <button type="button" onClick={() => navigate("/")} className="dashboard-action-button">{isEnglish ? "View site" : "عرض الموقع"}</button><button type="button" onClick={logout} className="dashboard-action-button flex items-center gap-2"><LogOut size={14} />{isEnglish ? "Sign out" : "تسجيل الخروج"}</button>
+            <button type="button" onClick={exportLegacyStoreData} className="dashboard-action-button">{isEnglish ? "Export legacy data" : "تصدير البيانات القديمة"}</button><label className="dashboard-action-button cursor-pointer">{isEnglish ? "Import legacy data" : "استيراد البيانات القديمة"}<input type="file" accept="application/json" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void importData(file); }} /></label><button type="button" onClick={() => navigate("/")} className="dashboard-action-button">{isEnglish ? "View site" : "عرض الموقع"}</button><button type="button" onClick={logout} className="dashboard-action-button flex items-center gap-2"><LogOut size={14} />{isEnglish ? "Sign out" : "تسجيل الخروج"}</button>
           </div>
         </div>
 

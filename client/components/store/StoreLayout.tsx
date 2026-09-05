@@ -225,10 +225,6 @@ export function StoreLayout({ children }: { children: ReactNode }) {
   useEffect(() => { setCatalog((current) => current.filter((product) => product.id !== "check-print-set")); }, []);
   useEffect(() => { localStorage.setItem("no-name-language", language); localStorage.setItem("no-name-language-version", "2"); document.documentElement.lang = language; document.documentElement.dir = isEnglish ? "ltr" : "rtl"; }, [language, isEnglish]);
   const toggleLanguage = () => setLanguage((current) => current === "ar" ? "en" : "ar");
-  useEffect(() => { localStorage.setItem("no-name-settings", JSON.stringify(siteSettings)); }, [siteSettings]);
-  useEffect(() => { localStorage.setItem("no-name-sections", JSON.stringify(sections)); }, [sections]);
-  useEffect(() => { localStorage.setItem("no-name-pages", JSON.stringify(pageSettings)); }, [pageSettings]);
-  useEffect(() => { localStorage.setItem("no-name-coupons", JSON.stringify(coupons)); }, [coupons]);
   useEffect(() => { window.scrollTo(0, 0); }, [location.pathname, location.search]);
   const addToCart = (product: typeof products[number]) => setCartItems((current) => { const existing = current.find((item) => item.product.id === product.id); return existing ? current.map((item) => item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item) : [...current, { product, quantity: 1 }]; });
   const removeFromCart = (id: string) => setCartItems((current) => current.filter((item) => item.product.id !== id));
@@ -236,15 +232,50 @@ export function StoreLayout({ children }: { children: ReactNode }) {
   const clearCart = () => { setCartItems([]); setAppliedCouponCode(""); };
   const cart = cartItems.reduce((total, item) => total + item.quantity, 0);
   const toggleLike = (index: number) => setLiked((current) => current.includes(index) ? current.filter((item) => item !== index) : [...current, index]);
-  const addProduct = (product: StoreProduct) => setCatalog((current) => [...current, product]);
-  const updateProduct = (product: StoreProduct) => setCatalog((current) => current.map((item) => item.id === product.id ? product : item));
-  const deleteProduct = (id: string) => setCatalog((current) => current.filter((item) => item.id !== id));
+  const addProduct = async (product: StoreProduct) => {
+    const response = await fetch("/api/admin/products", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(product) });
+    if (!response.ok) throw new Error("Unable to create product");
+    const data = await response.json() as { product: StoreProduct };
+    setCatalog((current) => [...current, data.product]);
+  };
+  const updateProduct = async (product: StoreProduct) => {
+    const response = await fetch(`/api/admin/products/${encodeURIComponent(product.id)}`, { method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(product) });
+    if (!response.ok) throw new Error("Unable to update product");
+    const data = await response.json() as { product: StoreProduct };
+    setCatalog((current) => current.map((item) => item.id === product.id ? data.product : item));
+  };
+  const deleteProduct = async (id: string) => {
+    const response = await fetch(`/api/admin/products/${encodeURIComponent(id)}`, { method: "DELETE", credentials: "include" });
+    if (!response.ok) throw new Error("Unable to delete product");
+    setCatalog((current) => current.filter((item) => item.id !== id));
+  };
   const addOrder = (order: StoreOrder) => setOrders((current) => [order, ...current]);
-  const updateSiteSettings = (settings: SiteSettings) => setSiteSettings(settings);
-  const updateSection = (key: string, section: SectionSettings) => setSections((current) => ({ ...current, [key]: section }));
-  const updatePageSettings = (settings: PageSettings) => setPageSettings(settings);
-  const addCoupon = (coupon: Coupon) => setCoupons((current) => [...current, coupon]);
-  const deleteCoupon = (code: string) => setCoupons((current) => current.filter((coupon) => coupon.code !== code));
+  const updateSiteSettings = async (settings: SiteSettings) => {
+    const response = await fetch("/api/admin/store-settings", { method: "PUT", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(settings) });
+    if (!response.ok) throw new Error("Unable to save settings");
+    setSiteSettings(settings);
+  };
+  const updateSection = async (key: string, section: SectionSettings) => {
+    const response = await fetch(`/api/admin/sections/${encodeURIComponent(key)}`, { method: "PUT", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(section) });
+    if (!response.ok) throw new Error("Unable to save section");
+    setSections((current) => ({ ...current, [key]: section }));
+  };
+  const updatePageSettings = async (settings: PageSettings) => {
+    const response = await fetch("/api/admin/pages", { method: "PUT", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(settings) });
+    if (!response.ok) throw new Error("Unable to save pages");
+    setPageSettings(settings);
+  };
+  const addCoupon = async (coupon: Coupon) => {
+    const response = await fetch("/api/admin/coupons", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(coupon) });
+    if (!response.ok) throw new Error("Unable to create coupon");
+    const data = await response.json() as { coupon: Coupon };
+    setCoupons((current) => [...current, data.coupon]);
+  };
+  const deleteCoupon = async (code: string) => {
+    const response = await fetch(`/api/admin/coupons/${encodeURIComponent(code)}`, { method: "DELETE", credentials: "include" });
+    if (!response.ok) throw new Error("Unable to delete coupon");
+    setCoupons((current) => current.filter((coupon) => coupon.code !== code));
+  };
   const nav = (path: string) => { setMenuOpen(false); navigate(path); };
 
   return <StoreContext.Provider value={{ cart, cartItems, catalog, siteSettings, sections, pageSettings, coupons, appliedCouponCode, setAppliedCouponCode, orders, addToCart, removeFromCart, updateQuantity, clearCart, addProduct, updateProduct, deleteProduct, addOrder, updateSiteSettings, updateSection, updatePageSettings, addCoupon, deleteCoupon, liked, toggleLike, language, toggleLanguage }}>

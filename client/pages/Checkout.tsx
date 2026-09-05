@@ -59,12 +59,22 @@ export default function Checkout() {
     setSubmitError("");
     if (!isFormValid || submitting) return;
     setSubmitting(true);
+    let receiptPath: string | undefined;
+    if (paymentMethod !== "cod") {
+      const receiptResponse = await fetch("/api/order-receipts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ receipt }) });
+      if (!receiptResponse.ok) {
+        setSubmitError(isEnglish ? "We could not upload the receipt." : "تعذر رفع الإيصال.");
+        setSubmitting(false);
+        return;
+      }
+      receiptPath = (await receiptResponse.json() as { path: string }).path;
+    }
     const response = await fetch("/api/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
       body: JSON.stringify({
         customerName: form.customerName.trim(), phone: form.phone.trim(), address: form.address.trim(), notes: form.notes.trim(),
-        paymentMethod, transferNumber: paymentMethod === "cod" ? undefined : transferNumber, receipt: paymentMethod === "cod" ? undefined : receipt,
+        paymentMethod, transferNumber: paymentMethod === "cod" ? undefined : transferNumber, receipt: receiptPath,
         couponCode: appliedCoupon?.code, items: cartItems.map(({ product, quantity }) => ({ productId: product.id, quantity })),
       }),
     });
@@ -90,7 +100,7 @@ export default function Checkout() {
       notes: form.notes.trim(),
       paymentMethod,
       transferNumber: paymentMethod === "cod" ? undefined : transferNumber,
-      receipt: paymentMethod === "cod" ? undefined : receipt,
+      receipt: receiptPath,
       orderItems: cartItems.map(({ product, quantity }) => {
         const unitPrice = getProductUnitPrice(product);
         return {
@@ -128,6 +138,7 @@ export default function Checkout() {
     const separator = whatsapp.includes("?") ? "&" : "?";
     const whatsappUrl = `${whatsapp}${separator}text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+    sessionStorage.setItem(`no-name-order-phone:${order.id}`, order.phone || "");
     navigate(`/order-summary/${order.id}`);
   };
 

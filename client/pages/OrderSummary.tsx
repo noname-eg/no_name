@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useStore, type StoreOrder } from "@/components/store/StoreLayout";
@@ -6,15 +7,24 @@ export default function OrderSummary() {
   const { id } = useParams();
   const { orders, language } = useStore();
   const isEnglish = language === "en";
-  const storedOrder = (() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem("no-name-orders") || "[]") as StoreOrder[];
-      return saved.find((item) => item.id === id);
-    } catch {
-      return undefined;
-    }
-  })();
-  const order = orders.find((item) => item.id === id) || storedOrder;
+  const [remoteOrder, setRemoteOrder] = useState<StoreOrder | undefined>();
+  useEffect(() => {
+    if (!id) return;
+    const phone = sessionStorage.getItem(`no-name-order-phone:${id}`);
+    if (!phone) return;
+    fetch(`/api/orders/${encodeURIComponent(id)}?phone=${encodeURIComponent(phone)}`)
+      .then((response) => response.ok ? response.json() : null)
+      .then((data: { order?: Record<string, unknown> } | null) => {
+        const value = data?.order;
+        if (!value) return;
+        setRemoteOrder({
+          id: String(value.order_number), date: String(value.created_at), total: Number(value.total), subtotal: Number(value.subtotal), discountAmount: Number(value.discount_amount), shippingAmount: Number(value.shipping_amount), couponCode: value.coupon_code ? String(value.coupon_code) : undefined,
+          status: value.status === "completed" ? "مكتمل" : value.status === "processing" ? "قيد التجهيز" : "جديد", items: 0, customerName: String(value.customer_name || ""), phone: String(value.phone || ""), address: String(value.address || ""), notes: value.notes ? String(value.notes) : undefined, paymentMethod: value.payment_method as StoreOrder["paymentMethod"], transferNumber: value.transfer_number ? String(value.transfer_number) : undefined,
+        });
+      })
+      .catch(() => undefined);
+  }, [id]);
+  const order = orders.find((item) => item.id === id) || remoteOrder;
 
   if (!order) {
     return <section className="mx-auto max-w-[760px] px-5 py-20 text-center lg:px-8"><h1 className="font-serif text-4xl">{isEnglish ? "Order not found" : "الطلب غير موجود"}</h1><Link to="/shop" className="mt-8 inline-flex items-center gap-5 border-b border-[#1c2822] pb-3 text-[11px] font-bold">{isEnglish ? "Continue shopping" : "متابعة التسوق"}<ArrowLeft size={16} /></Link></section>;

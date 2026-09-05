@@ -65,6 +65,16 @@ export async function supabaseRequest<T>(path: string, init: RequestInit = {}): 
   return body ? JSON.parse(body) as T : undefined as T;
 }
 
+export async function uploadSupabaseObject(path: string, contentType: string, body: Buffer) {
+  const { url, serviceRoleKey } = getSupabaseConfig();
+  const response = await fetch(`${url}/storage/v1/object/${path}`, {
+    method: "POST",
+    headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}`, "Content-Type": contentType, "x-upsert": "false" },
+    body: body as unknown as BodyInit,
+  });
+  if (!response.ok) throw new Error(`Supabase storage upload failed with status ${response.status}`);
+}
+
 export async function hashPassword(password: string) {
   const salt = randomBytes(16).toString("base64url");
   const derivedKey = (await scrypt(password, salt, 64)) as Buffer;
