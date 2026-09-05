@@ -17,6 +17,7 @@ import OrderSummary from "./pages/OrderSummary";
 import Admin from "./pages/Admin";
 import AdminLogin from "./pages/AdminLogin";
 import NotFound from "./pages/NotFound";
+import { NewDesignHome, NewDesignProduct, NewDesignShop } from "./pages/NewDesign";
 import { StoreLayout } from "./components/store/StoreLayout";
 
 const queryClient = new QueryClient();
@@ -51,6 +52,9 @@ const App = () => (
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/order-summary/:id" element={<OrderSummary />} />
+          <Route path="/new-design" element={<NewDesignHome />} />
+          <Route path="/new-design/shop" element={<NewDesignShop />} />
+          <Route path="/new-design/product/:id" element={<NewDesignProduct />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin" element={<AdminGate />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
