@@ -116,7 +116,7 @@ export const categories = [
 ];
 
 export type StoreProduct = Omit<typeof products[number], "nameEn"> & { nameEn?: string; description?: string; descriptionEn?: string; stock?: number; lowStockThreshold?: number; originalPrice?: number; salePrice?: number; badge?: string; colors?: string[]; sizes?: string[]; video?: string; images?: string[] };
-export type CartItem = { product: StoreProduct; quantity: number };
+export type CartItem = { product: StoreProduct; quantity: number; size?: string; color?: string };
 export type SiteSettings = { announcement: string; accent: string; heroTitle?: string; heroDescription?: string; walletNumber?: string; instapayNumber?: string; salesWhatsappNumber?: string; salesWhatsappUrl?: string; discoverVideos?: string[]; socialLinks?: { instagram?: string; facebook?: string; youtube?: string; whatsapp?: string; tiktok?: string } };
 export type SectionSettings = { title: string; description: string; image: string; video?: string };
 export type PageSettings = {
@@ -126,14 +126,14 @@ export type PageSettings = {
 };
 export type Coupon = { code: string; discount: number; uses: number; active: boolean };
 export type PaymentMethod = "cod" | "wallet" | "instapay";
-export type StoreOrderItem = { name: string; quantity: number; unitPrice: number; total: number; originalUnitPrice?: number; discountAmount?: number };
+export type StoreOrderItem = { name: string; quantity: number; unitPrice: number; total: number; size?: string; color?: string; originalUnitPrice?: number; discountAmount?: number };
 export type StoreOrder = { id: string; date: string; total: number; subtotal?: number; discountAmount?: number; shippingAmount?: number; couponCode?: string; status: "جديد" | "قيد التجهيز" | "مكتمل"; items: number; customerName?: string; phone?: string; address?: string; notes?: string; paymentMethod?: PaymentMethod; transferNumber?: string; receipt?: string; orderItems?: StoreOrderItem[] };
 export type Language = "ar" | "en";
 export const getSalesWhatsAppUrl = (settings: SiteSettings) => {
   const number = settings.salesWhatsappNumber?.replace(/\D/g, "");
   return settings.salesWhatsappUrl?.trim() || (number ? `https://wa.me/${number}` : settings.socialLinks?.whatsapp || "https://wa.me/201553003040");
 };
-type StoreContextValue = { cart: number; cartItems: CartItem[]; catalog: StoreProduct[]; siteSettings: SiteSettings; sections: Record<string, SectionSettings>; pageSettings: PageSettings; coupons: Coupon[]; appliedCouponCode: string; setAppliedCouponCode: (code: string) => void; orders: StoreOrder[]; addToCart: (product: StoreProduct) => void; removeFromCart: (id: string) => void; updateQuantity: (id: string, quantity: number) => void; clearCart: () => void; addProduct: (product: StoreProduct) => void; updateProduct: (product: StoreProduct) => void; deleteProduct: (id: string) => void; addOrder: (order: StoreOrder) => void; updateSiteSettings: (settings: SiteSettings) => void; updateSection: (key: string, section: SectionSettings) => void; updatePageSettings: (settings: PageSettings) => void; addCoupon: (coupon: Coupon) => void; deleteCoupon: (code: string) => void; liked: number[]; toggleLike: (index: number) => void; language: Language; toggleLanguage: () => void };
+type StoreContextValue = { cart: number; cartItems: CartItem[]; catalog: StoreProduct[]; siteSettings: SiteSettings; sections: Record<string, SectionSettings>; pageSettings: PageSettings; coupons: Coupon[]; appliedCouponCode: string; setAppliedCouponCode: (code: string) => void; orders: StoreOrder[]; addToCart: (product: StoreProduct, options?: Pick<CartItem, "size" | "color">) => void; removeFromCart: (id: string) => void; updateQuantity: (id: string, quantity: number) => void; clearCart: () => void; addProduct: (product: StoreProduct) => void; updateProduct: (product: StoreProduct) => void; deleteProduct: (id: string) => void; addOrder: (order: StoreOrder) => void; updateSiteSettings: (settings: SiteSettings) => void; updateSection: (key: string, section: SectionSettings) => void; updatePageSettings: (settings: PageSettings) => void; addCoupon: (coupon: Coupon) => void; deleteCoupon: (code: string) => void; liked: number[]; toggleLike: (index: number) => void; language: Language; toggleLanguage: () => void };
 const StoreContext = createContext<StoreContextValue | null>(null);
 export const useStore = () => {
   const context = useContext(StoreContext);
@@ -157,12 +157,12 @@ export function StoreLayout({ children }: { children: ReactNode }) {
   const [pageSettings, setPageSettings] = useState<PageSettings>(() => { try { const saved = JSON.parse(localStorage.getItem("no-name-pages") || "null") as Partial<PageSettings> | null; return { ...defaultPageSettings, ...saved, about: { ...defaultPageSettings.about, ...saved?.about }, shipping: { ...defaultPageSettings.shipping, ...saved?.shipping }, contact: { ...defaultPageSettings.contact, ...saved?.contact } }; } catch { return defaultPageSettings; } });
   const [coupons, setCoupons] = useState<Coupon[]>(() => { try { return JSON.parse(localStorage.getItem("no-name-coupons") || "[]"); } catch { return []; } });
   const [orders, setOrders] = useState<StoreOrder[]>([]);
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [cartItems, setCartItems] = useState<CartItem[]>(() => { try { return JSON.parse(localStorage.getItem("no-name-cart") || "[]") as CartItem[]; } catch { return []; } });
   const [appliedCouponCode, setAppliedCouponCode] = useState("");
   const [liked, setLiked] = useState<number[]>([]);
   const [email, setEmail] = useState("");
   const [subscribed, setSubscribed] = useState(false);
-  const [language, setLanguage] = useState<Language>("en");
+  const [language, setLanguage] = useState<Language>(() => localStorage.getItem("no-name-language") === "ar" ? "ar" : "en");
   const navigate = useNavigate();
   const location = useLocation();
   const isHome = location.pathname === "/";
@@ -226,9 +226,10 @@ export function StoreLayout({ children }: { children: ReactNode }) {
   useEffect(() => { localStorage.setItem("no-name-language", language); localStorage.setItem("no-name-language-version", "2"); document.documentElement.lang = language; document.documentElement.dir = isEnglish ? "ltr" : "rtl"; }, [language, isEnglish]);
   const toggleLanguage = () => setLanguage((current) => current === "ar" ? "en" : "ar");
   useEffect(() => { window.scrollTo(0, 0); }, [location.pathname, location.search]);
-  const addToCart = (product: typeof products[number]) => setCartItems((current) => { const existing = current.find((item) => item.product.id === product.id); return existing ? current.map((item) => item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item) : [...current, { product, quantity: 1 }]; });
+  const addToCart = (product: StoreProduct, options: Pick<CartItem, "size" | "color"> = {}) => setCartItems((current) => { const existing = current.find((item) => item.product.id === product.id && item.size === options.size && item.color === options.color); return existing ? current.map((item) => item === existing ? { ...item, quantity: item.quantity + 1 } : item) : [...current, { product, quantity: 1, ...options }]; });
   const removeFromCart = (id: string) => setCartItems((current) => current.filter((item) => item.product.id !== id));
   const updateQuantity = (id: string, quantity: number) => setCartItems((current) => quantity < 1 ? current.filter((item) => item.product.id !== id) : current.map((item) => item.product.id === id ? { ...item, quantity } : item));
+  useEffect(() => { localStorage.setItem("no-name-cart", JSON.stringify(cartItems)); }, [cartItems]);
   const clearCart = () => { setCartItems([]); setAppliedCouponCode(""); };
   const cart = cartItems.reduce((total, item) => total + item.quantity, 0);
   const toggleLike = (index: number) => setLiked((current) => current.includes(index) ? current.filter((item) => item !== index) : [...current, index]);

@@ -229,8 +229,8 @@ begin
     v_quantity := (v_item->>'quantity')::integer;
     select * into v_product from products where id = v_item->>'productId' for update;
     v_unit_price := coalesce(v_product.sale_price, v_product.numeric_price);
-    insert into order_items (order_id, product_id, name, quantity, unit_price, total)
-    values (v_order_id, v_product.id, v_product.name, v_quantity, v_unit_price, v_unit_price * v_quantity);
+    insert into order_items (order_id, product_id, name, quantity, unit_price, total, size, color)
+    values (v_order_id, v_product.id, v_product.name, v_quantity, v_unit_price, v_unit_price * v_quantity, nullif(trim(v_item->>'size'), ''), nullif(trim(v_item->>'color'), ''));
     update products set stock = stock - v_quantity, updated_at = now() where id = v_product.id;
   end loop;
 

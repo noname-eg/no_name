@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Express } from "express";
 import { z } from "zod";
-import { requireAdmin, supabaseRequest, uploadSupabaseObject, writeAuditLog } from "../auth";
+import { deleteSupabaseObject, requireAdmin, supabaseRequest, uploadSupabaseObject, writeAuditLog } from "../auth";
 
 const productSelect = "id,name,name_en,description,description_en,category,numeric_price,original_price,sale_price,image,images,colors,sizes,badge,tag,stock,low_stock_threshold,active";
 
@@ -12,9 +12,13 @@ const orderSchema = z.object({
   notes: z.string().trim().max(1000).optional().default(""),
   paymentMethod: z.enum(["cod", "wallet", "instapay"]),
   transferNumber: z.string().trim().max(120).optional(),
-  receipt: z.string().max(1_500_000).optional(),
+  receipt: z.string().max(500).optional(),
   couponCode: z.string().trim().max(64).optional(),
-  items: z.array(z.object({ productId: z.string().trim().min(1).max(120), quantity: z.number().int().min(1).max(99) })).min(1).max(50),
+  items: z.array(z.object({ productId: z.string().trim().min(1).max(120), quantity: z.number().int().min(1).max(99), size: z.string().trim().max(30).optional(), color: z.string().trim().max(30).optional() })).min(1).max(50),
+}).superRefine((order, context) => {
+  if (order.paymentMethod !== "cod" && (!order.transferNumber || !order.receipt)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: "Transfer details are required." });
+  }
 });
 
 const orderStatusSchema = z.object({ status: z.enum(["new", "processing", "completed", "rejected"]) });
@@ -273,6 +277,9 @@ export function registerStoreRoutes(app: Express) {
       });
       res.status(201).json({ order: result });
     } catch (error) {
+      if (parsed.data.receipt?.startsWith("receipts/")) {
+        await deleteSupabaseObject(parsed.data.receipt).catch((cleanupError) => console.error("Receipt cleanup failed", cleanupError));
+      }
       console.error("Order creation failed", error);
       const message = error instanceof Error ? error.message : "";
       if (message.includes("product unavailable") || message.includes("invalid coupon")) {

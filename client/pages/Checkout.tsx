@@ -75,7 +75,7 @@ export default function Checkout() {
       body: JSON.stringify({
         customerName: form.customerName.trim(), phone: form.phone.trim(), address: form.address.trim(), notes: form.notes.trim(),
         paymentMethod, transferNumber: paymentMethod === "cod" ? undefined : transferNumber, receipt: receiptPath,
-        couponCode: appliedCoupon?.code, items: cartItems.map(({ product, quantity }) => ({ productId: product.id, quantity })),
+        couponCode: appliedCoupon?.code, items: cartItems.map(({ product, quantity, size, color }) => ({ productId: product.id, quantity, size, color })),
       }),
     });
     if (!response.ok) {
@@ -101,11 +101,13 @@ export default function Checkout() {
       paymentMethod,
       transferNumber: paymentMethod === "cod" ? undefined : transferNumber,
       receipt: receiptPath,
-      orderItems: cartItems.map(({ product, quantity }) => {
+      orderItems: cartItems.map(({ product, quantity, size, color }) => {
         const unitPrice = getProductUnitPrice(product);
         return {
           name: getProductName(product, language),
           quantity,
+          size,
+          color,
           unitPrice,
           originalUnitPrice: product.originalPrice,
           discountAmount: (product.originalPrice && product.originalPrice > unitPrice ? product.originalPrice - unitPrice : 0) * quantity,

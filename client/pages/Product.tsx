@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Check, Heart, MessageCircle, Minus, Plus, ShoppingBag, Truck } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { getCategoryName, getProductName, getProductPrice, ProductCard, useStore } from "@/components/store/StoreLayout";
+import NotFound from "./NotFound";
 
 const sizes = ["S", "M", "L", "XL", "XXL"];
 
@@ -9,7 +10,8 @@ export default function Product() {
   const { id } = useParams();
   const { catalog, addToCart, liked, toggleLike, language } = useStore();
   const isEnglish = language === "en";
-  const product = catalog.find((item) => item.id === id) || catalog[0];
+  const product = catalog.find((item) => item.id === id);
+  if (!product) return <NotFound />;
   const productName = getProductName(product, language);
   const productDescription = (isEnglish ? product.descriptionEn : product.description) || (isEnglish ? "A thoughtful everyday piece designed for comfort, ease, and effortless styling." : "قطعة مصممة عشان تكمل يومك بسهولة. خامة مريحة وقصّة مدروسة، تتلبس بطريقتك وفي كل مناسبة.");
   const galleryImages = product.images?.length ? product.images.slice(0, 5) : [product.image, product.image, product.image];
@@ -24,7 +26,7 @@ export default function Product() {
   useEffect(() => { setSelectedThumbnail(0); }, [product.id]);
 
   const add = () => {
-    for (let count = 0; count < quantity; count += 1) addToCart(product);
+    for (let count = 0; count < quantity; count += 1) addToCart(product, { size: selectedSize, color: selectedColor });
     setAdded(true);
   };
 
