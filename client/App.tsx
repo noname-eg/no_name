@@ -16,6 +16,7 @@ import Checkout from "./pages/Checkout";
 import OrderSummary from "./pages/OrderSummary";
 import Admin from "./pages/Admin";
 import AdminLogin from "./pages/AdminLogin";
+import Account from "./pages/Account";
 import NotFound from "./pages/NotFound";
 import { NewDesignHome, NewDesignProduct, NewDesignShop } from "./pages/NewDesign";
 import { StoreLayout } from "./components/store/StoreLayout";
@@ -52,6 +53,7 @@ const App = () => (
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/order-summary/:id" element={<OrderSummary />} />
+          <Route path="/account" element={<Account />} />
           <Route path="/new-design" element={<NewDesignHome />} />
           <Route path="/new-design/shop" element={<NewDesignShop />} />
           <Route path="/new-design/product/:id" element={<NewDesignProduct />} />

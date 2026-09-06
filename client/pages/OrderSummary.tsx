@@ -11,11 +11,11 @@ export default function OrderSummary() {
   useEffect(() => {
     if (!id) return;
     const phone = sessionStorage.getItem(`no-name-order-phone:${id}`);
-    if (!phone) return;
-    fetch(`/api/orders/${encodeURIComponent(id)}?phone=${encodeURIComponent(phone)}`)
+    const endpoint = phone ? `/api/orders/${encodeURIComponent(id)}?phone=${encodeURIComponent(phone)}` : "/api/customer/orders";
+    fetch(endpoint, { credentials: "include" })
       .then((response) => response.ok ? response.json() : null)
-      .then((data: { order?: Record<string, unknown> } | null) => {
-        const value = data?.order;
+      .then((data: { order?: Record<string, unknown>; orders?: Record<string, unknown>[] } | null) => {
+        const value = data?.order || data?.orders?.find((candidate) => String(candidate.order_number) === id);
         if (!value) return;
         setRemoteOrder({
           id: String(value.order_number), date: String(value.created_at), total: Number(value.total), subtotal: Number(value.subtotal), discountAmount: Number(value.discount_amount), shippingAmount: Number(value.shipping_amount), couponCode: value.coupon_code ? String(value.coupon_code) : undefined,

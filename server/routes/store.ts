@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Express } from "express";
 import { z } from "zod";
-import { deleteSupabaseObject, loadCustomerFromRequest, requireAdmin, requireCustomer, supabaseRequest, uploadSupabaseObject, writeAuditLog } from "../auth";
+import { createSupabaseSignedUrl, deleteSupabaseObject, loadCustomerFromRequest, requireAdmin, requireCustomer, supabaseRequest, uploadSupabaseObject, writeAuditLog } from "../auth";
 
 const productSelect = "id,name,name_en,description,description_en,category,numeric_price,original_price,sale_price,image,images,colors,sizes,badge,tag,stock,low_stock_threshold,active";
 
@@ -334,6 +334,35 @@ export function registerStoreRoutes(app: Express) {
       const orders = await supabaseRequest<Record<string, unknown>[]>(`orders?select=*,order_items(*)&customer_id=eq.${encodeURIComponent(req.customer!.id)}&order=created_at.desc`);
       res.json({ orders });
     } catch (error) { console.error("Customer orders lookup failed", error); res.status(503).json({ error: "Unable to load customer orders." }); }
+  });
+
+  app.post("/api/admin/products/:id/inventory", requireAdmin, async (req, res) => {
+    const parsed = z.object({ quantityDelta: z.number().int().min(-100000).max(100000).refine((value) => value !== 0), reason: z.string().trim().min(2).max(500) }).safeParse(req.body);
+    if (!parsed.success) { res.status(400).json({ error: "Invalid inventory movement." }); return; }
+    try {
+      const result = await supabaseRequest<Record<string, unknown> | Record<string, unknown>[]>("rpc/adjust_product_stock", { method: "POST", body: JSON.stringify({ p_product_id: String(req.params.id), p_quantity_delta: parsed.data.quantityDelta, p_reason: parsed.data.reason, p_admin_user_id: req.admin!.id }) });
+      const product = Array.isArray(result) ? result[0] : result;
+      if (!product) { res.status(404).json({ error: "Product not found." }); return; }
+      await writeAuditLog("inventory.adjusted", req.admin?.id, { productId: req.params.id, quantityDelta: parsed.data.quantityDelta, reason: parsed.data.reason });
+      res.json({ product: mapProduct(product) });
+    } catch (error) { console.error("Inventory adjustment failed", error); res.status(409).json({ error: "Unable to adjust inventory." }); }
+  });
+
+  app.get("/api/admin/orders/:id", requireAdmin, async (req, res) => {
+    try {
+      const orders = await supabaseRequest<Record<string, unknown>[]>(`orders?select=*,order_items(*)&id=eq.${encodeURIComponent(String(req.params.id))}&limit=1`);
+      if (!orders[0]) { res.status(404).json({ error: "Order not found." }); return; }
+      res.json({ order: orders[0] });
+    } catch (error) { console.error("Admin order detail lookup failed", error); res.status(503).json({ error: "Unable to load order." }); }
+  });
+
+  app.get("/api/admin/orders/:id/receipt-url", requireAdmin, async (req, res) => {
+    try {
+      const orders = await supabaseRequest<{ receipt: string | null }[]>(`orders?select=receipt&id=eq.${encodeURIComponent(String(req.params.id))}&limit=1`);
+      const receipt = orders[0]?.receipt;
+      if (!receipt || !receipt.startsWith("receipts/")) { res.status(404).json({ error: "Receipt not found." }); return; }
+      res.json({ url: await createSupabaseSignedUrl(receipt) });
+    } catch (error) { console.error("Receipt URL creation failed", error); res.status(503).json({ error: "Unable to create receipt URL." }); }
   });
 
   app.get("/api/admin/orders", requireAdmin, async (_req, res) => {

@@ -21,6 +21,7 @@ declare global {
 
 const loginSchema = z.object({ email: z.string().trim().email().max(320), password: z.string().min(1).max(256) });
 const customerProfileSchema = z.object({ fullName: z.string().trim().min(2).max(120), phone: z.string().trim().regex(/^\d{7,15}$/), address: z.string().trim().max(500).optional() });
+const customerRegistrationSchema = loginSchema.extend({ password: z.string().min(8).max(256) }).merge(customerProfileSchema);
 type CustomerUser = { id: string; email?: string };
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
 
@@ -66,6 +67,17 @@ export async function deleteSupabaseObject(path: string) {
   const { url, serviceRoleKey } = getSupabaseConfig();
   const response = await fetch(`${url}/storage/v1/object/${path}`, { method: "DELETE", headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` } });
   if (!response.ok) throw new Error(`Supabase storage delete failed with status ${response.status}`);
+}
+
+export async function createSupabaseSignedUrl(path: string, expiresIn = 300) {
+  const { url, serviceRoleKey } = getSupabaseConfig();
+  if (!path.startsWith("receipts/")) throw new Error("Invalid receipt path");
+  const objectPath = path.slice("receipts/".length).split("/").map(encodeURIComponent).join("/");
+  const response = await fetch(`${url}/storage/v1/object/sign/receipts/${objectPath}`, { method: "POST", headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ expiresIn }) });
+  if (!response.ok) throw new Error(`Supabase storage signing failed with status ${response.status}`);
+  const body = await response.json() as { signedURL?: string };
+  if (!body.signedURL) throw new Error("Supabase did not return a signed receipt URL");
+  return `${url}/storage/v1${body.signedURL}`;
 }
 
 function getClientKey(req: Request) { return req.ip || req.socket.remoteAddress || "unknown"; }
@@ -143,7 +155,7 @@ export function registerAuthRoutes(app: Express) {
   app.get("/api/admin/check", requireAdmin, (req, res) => { res.json({ authenticated: true, user: { id: req.admin!.id, email: req.admin!.email, role: req.admin!.role } }); });
 
   app.post("/api/customer/register", async (req, res) => {
-    const parsed = loginSchema.merge(customerProfileSchema).safeParse(req.body);
+    const parsed = customerRegistrationSchema.safeParse(req.body);
     if (!parsed.success) { res.status(400).json({ error: "Invalid customer data." }); return; }
     try {
       const { email, password, fullName, phone, address } = parsed.data;
