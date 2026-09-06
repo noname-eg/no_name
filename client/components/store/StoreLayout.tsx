@@ -133,7 +133,8 @@ export const getSalesWhatsAppUrl = (settings: SiteSettings) => {
   const number = settings.salesWhatsappNumber?.replace(/\D/g, "");
   return settings.salesWhatsappUrl?.trim() || (number ? `https://wa.me/${number}` : settings.socialLinks?.whatsapp || "https://wa.me/201553003040");
 };
-type StoreContextValue = { cart: number; cartItems: CartItem[]; catalog: StoreProduct[]; siteSettings: SiteSettings; sections: Record<string, SectionSettings>; pageSettings: PageSettings; coupons: Coupon[]; appliedCouponCode: string; setAppliedCouponCode: (code: string) => void; orders: StoreOrder[]; addToCart: (product: StoreProduct, options?: Pick<CartItem, "size" | "color">) => void; removeFromCart: (id: string) => void; updateQuantity: (id: string, quantity: number) => void; clearCart: () => void; addProduct: (product: StoreProduct) => void; updateProduct: (product: StoreProduct) => void; deleteProduct: (id: string) => void; addOrder: (order: StoreOrder) => void; updateSiteSettings: (settings: SiteSettings) => void; updateSection: (key: string, section: SectionSettings) => void; updatePageSettings: (settings: PageSettings) => void; addCoupon: (coupon: Coupon) => void; deleteCoupon: (code: string) => void; liked: number[]; toggleLike: (index: number) => void; language: Language; toggleLanguage: () => void };
+type CatalogStatus = "loading" | "ready" | "error";
+type StoreContextValue = { cart: number; cartItems: CartItem[]; catalog: StoreProduct[]; catalogStatus: CatalogStatus; catalogError: string; siteSettings: SiteSettings; sections: Record<string, SectionSettings>; pageSettings: PageSettings; coupons: Coupon[]; appliedCouponCode: string; setAppliedCouponCode: (code: string) => void; orders: StoreOrder[]; addToCart: (product: StoreProduct, options?: Pick<CartItem, "size" | "color">) => void; removeFromCart: (id: string) => void; updateQuantity: (id: string, quantity: number) => void; clearCart: () => void; addProduct: (product: StoreProduct) => void; updateProduct: (product: StoreProduct) => void; deleteProduct: (id: string) => void; addOrder: (order: StoreOrder) => void; updateSiteSettings: (settings: SiteSettings) => void; updateSection: (key: string, section: SectionSettings) => void; updatePageSettings: (settings: PageSettings) => void; addCoupon: (coupon: Coupon) => void; deleteCoupon: (code: string) => void; liked: number[]; toggleLike: (index: number) => void; language: Language; toggleLanguage: () => void };
 const StoreContext = createContext<StoreContextValue | null>(null);
 export const useStore = () => {
   const context = useContext(StoreContext);
@@ -146,6 +147,8 @@ export function StoreLayout({ children }: { children: ReactNode }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [catalog, setCatalog] = useState<StoreProduct[]>([]);
+  const [catalogStatus, setCatalogStatus] = useState<CatalogStatus>("loading");
+  const [catalogError, setCatalogError] = useState("");
   const [siteSettings, setSiteSettings] = useState<SiteSettings>({ announcement: "Free shipping on orders over 2,500 EGP · Cash on delivery available", accent: "#d4775c", heroTitle: "New for Summer 2026", heroDescription: "Modest styles designed for everyday comfort.", salesWhatsappNumber: "201068568250", salesWhatsappUrl: "https://wa.me/201068568250", socialLinks: { instagram: "", facebook: "", youtube: "", whatsapp: "https://wa.me/201553003040", tiktok: "" } });
   const defaultSections: Record<string, SectionSettings> = { arrivals: { title: "New Collection", description: "New pieces have just arrived.", image: "" }, categories: { title: "Shop by category", description: "Find the section closest to your style.", image: "" }, editorial: { title: "Effortless style", description: "Thoughtful designs for every moment.", image: "" }, discover: { title: "Discover your style", description: "Explore the latest looks.", image: "" }, sets: { title: "Sets", description: "", image: "" }, tops: { title: "Blouses / shirts", description: "", image: "" }, pants: { title: "Skirts / pants", description: "", image: "" }, dresses: { title: "Dresses", description: "", image: "" } };
   const [sections, setSections] = useState<Record<string, SectionSettings>>(defaultSections);
@@ -174,11 +177,22 @@ export function StoreLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     fetch("/api/products")
-      .then((response) => response.ok ? response.json() : null)
-      .then((data: { products?: StoreProduct[] } | null) => {
-        if (!cancelled && data?.products) setCatalog(data.products.map((product) => ({ ...product, stock: product.stock ?? 0, lowStockThreshold: product.lowStockThreshold ?? 3 })));
+      .then(async (response) => {
+        const data = await response.json().catch(() => null) as { products?: StoreProduct[]; error?: string } | null;
+        if (!response.ok) throw new Error(data?.error || "Unable to load products.");
+        return data;
       })
-      .catch(() => undefined);
+      .then((data) => {
+        if (cancelled) return;
+        setCatalog((data?.products || []).map((product) => ({ ...product, stock: product.stock ?? 0, lowStockThreshold: product.lowStockThreshold ?? 3 })));
+        setCatalogStatus("ready");
+        setCatalogError("");
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setCatalogStatus("error");
+        setCatalogError(error instanceof Error ? error.message : "Unable to load products.");
+      });
     return () => { cancelled = true; };
   }, []);
   useEffect(() => {
@@ -279,7 +293,7 @@ export function StoreLayout({ children }: { children: ReactNode }) {
   };
   const nav = (path: string) => { setMenuOpen(false); navigate(path); };
 
-  return <StoreContext.Provider value={{ cart, cartItems, catalog, siteSettings, sections, pageSettings, coupons, appliedCouponCode, setAppliedCouponCode, orders, addToCart, removeFromCart, updateQuantity, clearCart, addProduct, updateProduct, deleteProduct, addOrder, updateSiteSettings, updateSection, updatePageSettings, addCoupon, deleteCoupon, liked, toggleLike, language, toggleLanguage }}>
+  return <StoreContext.Provider value={{ cart, cartItems, catalog, catalogStatus, catalogError, siteSettings, sections, pageSettings, coupons, appliedCouponCode, setAppliedCouponCode, orders, addToCart, removeFromCart, updateQuantity, clearCart, addProduct, updateProduct, deleteProduct, addOrder, updateSiteSettings, updateSection, updatePageSettings, addCoupon, deleteCoupon, liked, toggleLike, language, toggleLanguage }}>
     <main dir={isEnglish ? "ltr" : "rtl"} className="min-h-screen overflow-x-clip bg-white text-[#171717]">
       <div className="fixed inset-x-0 top-0 z-40 h-[30px] overflow-hidden border-b border-[#1c2822]/10 bg-[#f4f2e9] px-5 py-1.5 text-center text-[8px] tracking-[0.08em] text-[#1c2822]/75 sm:text-[9px]"><div className="announcement-track flex w-max items-center gap-16 whitespace-nowrap"><span>{siteSettings.announcement || (isEnglish ? "Free Shipping on Orders Over 3,000 EGP" : "شحن مجاني للطلبات فوق ٣٠٠٠ جنيه")}</span><span>{isEnglish ? "Enjoy Up to 50% Off · Welcome Anew" : "خصم يصل إلى ٥٠٪ · أهلاً بكِ"}</span><span>{siteSettings.announcement || (isEnglish ? "Free Shipping on Orders Over 3,000 EGP" : "شحن مجاني للطلبات فوق ٣٠٠٠ جنيه")}</span><span>{siteSettings.announcement || (isEnglish ? "Free Shipping on Orders Over 3,000 EGP" : "شحن مجاني للطلبات فوق ٣٠٠٠ جنيه")}</span><span>{isEnglish ? "Enjoy Up to 50% Off · Welcome Anew" : "خصم يصل إلى ٥٠٪ · أهلاً بكِ"}</span><span>{siteSettings.announcement || (isEnglish ? "Free Shipping on Orders Over 3,000 EGP" : "شحن مجاني للطلبات فوق ٣٠٠٠ جنيه")}</span></div></div>
       <header className={`z-30 ${isHome ? (isScrolled ? "fixed inset-x-0 top-[30px] border-b border-black/10 bg-[#eeece1] text-[#171717] shadow-sm" : "fixed inset-x-0 top-[30px] bg-transparent text-white") : "sticky top-[30px] border-b border-black/10 bg-[#eeece1] text-[#171717]"}`}>

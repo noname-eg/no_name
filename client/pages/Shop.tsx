@@ -25,7 +25,7 @@ const filterOptions = {
 
 export default function Shop() {
   const [params, setParams] = useSearchParams();
-  const { catalog, language, sections } = useStore();
+  const { catalog, catalogStatus, catalogError, language, sections } = useStore();
   const isEnglish = language === "en";
   const [openFilter, setOpenFilter] = useState<string | null>(null);
   const [selectedColor, setSelectedColor] = useState("");
@@ -79,7 +79,7 @@ export default function Shop() {
 
       {openFilter === "categories" && <div className="mb-6 flex flex-wrap gap-2 border-b border-black/10 pb-5">{filters.map((filter) => <button key={filter} onClick={() => { chooseCategory(filter); setOpenFilter(null); }} className={`rounded-full border px-4 py-2 text-[10px] ${normalizedSelected === filter ? "border-black bg-black text-white" : "border-black/15"}`}>{isEnglish ? (categoryNames[filter]?.en || filter) : (categoryNames[filter]?.ar || filter)}</button>)}</div>}
 
-      {filteredProducts.length > 0 ? <div className="grid grid-cols-2 gap-x-3 gap-y-12 sm:grid-cols-3 sm:gap-6">{filteredProducts.map((product) => <ProductCard key={product.id} product={product} index={catalog.indexOf(product)} />)}</div> : <div className="py-24 text-center"><p className="font-serif text-3xl">{isEnglish ? "No pieces found" : "لم نجد قطعاً مطابقة"}</p><button onClick={() => { setSelectedColor(""); setParams({}); }} className="mt-6 border-b border-black pb-2 text-[11px]">{isEnglish ? "Clear filters" : "مسح الفلاتر"}</button></div>}
+      {catalogStatus === "loading" ? <div className="py-24 text-center"><p className="font-serif text-3xl">{isEnglish ? "Loading pieces..." : "جارٍ تحميل المنتجات..."}</p></div> : catalogStatus === "error" ? <div className="py-24 text-center"><p className="font-serif text-3xl">{isEnglish ? "Products are unavailable" : "المنتجات غير متاحة حالياً"}</p><p className="mx-auto mt-4 max-w-md text-[12px] leading-7 text-black/55">{isEnglish ? "Check the Supabase connection and make sure the products table is configured." : "تحققي من اتصال Supabase وتطبيق الجداول وإضافة منتجات نشطة."}</p><p className="mt-3 text-[10px] text-black/40">{catalogError}</p></div> : filteredProducts.length > 0 ? <div className="grid grid-cols-2 gap-x-3 gap-y-12 sm:grid-cols-3 sm:gap-6">{filteredProducts.map((product) => <ProductCard key={product.id} product={product} index={catalog.indexOf(product)} />)}</div> : <div className="py-24 text-center"><p className="font-serif text-3xl">{catalog.length === 0 ? (isEnglish ? "No products yet" : "لا توجد منتجات بعد") : (isEnglish ? "No pieces found" : "لم نجد قطعاً مطابقة")}</p><p className="mx-auto mt-4 max-w-md text-[12px] leading-7 text-black/55">{catalog.length === 0 ? (isEnglish ? "Add an active product from the admin dashboard or import your legacy data." : "أضيفي منتجاً نشطاً من لوحة التحكم أو استوردي البيانات القديمة.") : ""}</p><button onClick={() => { setSelectedColor(""); setParams({}); }} className="mt-6 border-b border-black pb-2 text-[11px]">{isEnglish ? "Clear filters" : "مسح الفلاتر"}</button></div>}
     </section>
   );
 }

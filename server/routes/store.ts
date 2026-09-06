@@ -54,6 +54,15 @@ function productRow(product: z.infer<typeof productSchema>) {
   };
 }
 
+function normalizeLegacyProduct(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+  const product = value as Record<string, unknown>;
+  const priceText = typeof product.price === "string" ? product.price.replace(/[^0-9.]/g, "") : "";
+  const numericPrice = typeof product.numericPrice === "number" ? product.numericPrice : Number(priceText);
+  const images = Array.isArray(product.images) ? product.images : [];
+  return { ...product, numericPrice, image: typeof product.image === "string" && product.image ? product.image : images[0] };
+}
+
 function mapProduct(product: Record<string, unknown>) {
   const numericPrice = Number(product.numeric_price);
   return {
@@ -76,9 +85,15 @@ export function registerStoreRoutes(app: Express) {
     if (!body.success) { res.status(400).json({ error: "Invalid migration file." }); return; }
     try {
       let products = 0;
+      let rejectedProducts = 0;
+      const rejectedDetails: string[] = [];
       for (const value of body.data.products || []) {
-        const parsed = productSchema.safeParse(value);
-        if (!parsed.success) continue;
+        const parsed = productSchema.safeParse(normalizeLegacyProduct(value));
+        if (!parsed.success) {
+          rejectedProducts += 1;
+          if (rejectedDetails.length < 20) rejectedDetails.push(`product: ${parsed.error.issues[0]?.message || "invalid data"}`);
+          continue;
+        }
         await supabaseRequest("products?on_conflict=id", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify(productRow(parsed.data)) });
         products += 1;
       }
@@ -86,14 +101,19 @@ export function registerStoreRoutes(app: Express) {
       for (const [key, data] of Object.entries(body.data.sections || {})) await supabaseRequest("site_sections?on_conflict=key", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ key, data }) });
       if (body.data.pages) await supabaseRequest("page_settings?on_conflict=id", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ id: true, data: body.data.pages }) });
       let coupons = 0;
+      let rejectedCoupons = 0;
       for (const value of body.data.coupons || []) {
         const parsed = couponSchema.safeParse(value);
-        if (!parsed.success) continue;
+        if (!parsed.success) {
+          rejectedCoupons += 1;
+          if (rejectedDetails.length < 20) rejectedDetails.push(`coupon: ${parsed.error.issues[0]?.message || "invalid data"}`);
+          continue;
+        }
         await supabaseRequest("coupons?on_conflict=code", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ code: parsed.data.code.toUpperCase(), discount: parsed.data.discount, uses: 0, max_uses: parsed.data.maxUses ?? null, expires_at: parsed.data.expiresAt ?? null, active: parsed.data.active }) });
         coupons += 1;
       }
-      await writeAuditLog("store.migrated", req.admin?.id, { products, coupons, ordersSkipped: (body.data.orders || []).length });
-      res.json({ imported: { products, coupons }, ordersSkipped: (body.data.orders || []).length });
+      await writeAuditLog("store.migrated", req.admin?.id, { products, coupons, rejectedProducts, rejectedCoupons, ordersSkipped: (body.data.orders || []).length });
+      res.json({ imported: { products, coupons }, rejected: { products: rejectedProducts, coupons: rejectedCoupons, details: rejectedDetails }, ordersSkipped: (body.data.orders || []).length });
     } catch (error) { console.error("Store migration failed", error); res.status(400).json({ error: "Unable to import migration file." }); }
   });
 

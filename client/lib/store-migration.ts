@@ -1,5 +1,14 @@
 const keys = ["no-name-products", "no-name-settings", "no-name-sections", "no-name-pages", "no-name-coupons", "no-name-orders"] as const;
 
+const LEGACY_STORAGE_KEYS = {
+  products: "no-name-products",
+  settings: "no-name-settings",
+  sections: "no-name-sections",
+  pages: "no-name-pages",
+  coupons: "no-name-coupons",
+  orders: "no-name-orders",
+} as const;
+
 export type LegacyStoreData = {
   products?: unknown[];
   settings?: Record<string, unknown>;
@@ -19,12 +28,12 @@ function readJson(key: string) {
 
 export function exportLegacyStoreData() {
   const data: LegacyStoreData = {
-    products: readJson(keys[0]) || [],
-    settings: readJson(keys[1]) || {},
-    sections: readJson(keys[2]) || {},
-    pages: readJson(keys[3]) || {},
-    coupons: readJson(keys[4]) || [],
-    orders: readJson(keys[5]) || [],
+    products: readJson(LEGACY_STORAGE_KEYS.products) || [],
+    settings: readJson(LEGACY_STORAGE_KEYS.settings) || {},
+    sections: readJson(LEGACY_STORAGE_KEYS.sections) || {},
+    pages: readJson(LEGACY_STORAGE_KEYS.pages) || {},
+    coupons: readJson(LEGACY_STORAGE_KEYS.coupons) || [],
+    orders: readJson(LEGACY_STORAGE_KEYS.orders) || [],
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -45,5 +54,9 @@ export async function importLegacyStoreData(file: File) {
     body: JSON.stringify(data),
   });
   if (!response.ok) throw new Error("Unable to import store data");
-  return response.json() as Promise<{ imported: { products: number; coupons: number }; ordersSkipped: number }>;
+  return response.json() as Promise<{
+    imported: { products: number; coupons: number };
+    rejected: { products: number; coupons: number; details: string[] };
+    ordersSkipped: number;
+  }>;
 }

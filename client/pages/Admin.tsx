@@ -86,7 +86,8 @@ export default function Admin() {
   const importData = async (file: File) => {
     try {
       const result = await importLegacyStoreData(file);
-      window.alert(`${result.imported.products} products and ${result.imported.coupons} coupons imported. ${result.ordersSkipped} old orders skipped.`);
+      const rejected = result.rejected.products + result.rejected.coupons;
+      window.alert(`${result.imported.products} products and ${result.imported.coupons} coupons imported. ${rejected} records rejected. ${result.ordersSkipped} old orders skipped.${result.rejected.details.length ? `\n\n${result.rejected.details.join("\n")}` : ""}`);
       window.location.reload();
     } catch {
       window.alert(isEnglish ? "Unable to import legacy data." : "تعذر استيراد البيانات القديمة.");
