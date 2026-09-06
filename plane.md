@@ -86,8 +86,8 @@ dist/server/node-build.mjs
 SUPABASE_URL=https://<project-ref>.supabase.co
 SUPABASE_ANON_KEY=<public-auth-key>
 SUPABASE_SERVICE_ROLE_KEY=<server-only-key>
-APP_ORIGIN=http://localhost:8080
-NODE_ENV=development
+APP_ORIGIN=https://your-production-domain.example
+NODE_ENV=production
 ```
 
 لا تضع `SUPABASE_SERVICE_ROLE_KEY` في `VITE_*` أو داخل ملفات `client` أو Git.

@@ -1,6 +1,6 @@
-import "dotenv/config";
 import { stdin as input, stdout as output } from "node:process";
-import { hashPassword } from "../server/auth";
+
+type AuthUser = { id: string; email?: string };
 
 function readSecret(prompt: string) {
   return new Promise<string>((resolve) => {
@@ -15,11 +15,8 @@ function readSecret(prompt: string) {
           input.off("data", onData);
           output.write("\n");
           resolve(value);
-        } else if (character === "\u007f") {
-          value = value.slice(0, -1);
-        } else {
-          value += character;
-        }
+        } else if (character === "\u007f") value = value.slice(0, -1);
+        else value += character;
       }
     };
     input.resume();
@@ -28,52 +25,48 @@ function readSecret(prompt: string) {
   });
 }
 
-const username = process.argv[2]?.trim();
-if (!username) {
-  console.error("Usage: pnpm admin:create <username>");
+const email = process.argv[2]?.trim().toLowerCase();
+if (!email || !email.includes("@")) {
+  console.error("Usage: pnpm admin:create <email>");
   process.exit(1);
 }
-
-const rawSupabaseUrl = process.env.SUPABASE_URL?.trim();
+const supabaseUrl = process.env.SUPABASE_URL?.trim();
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-if (!rawSupabaseUrl || !serviceRoleKey) {
+if (!supabaseUrl || !serviceRoleKey) {
   console.error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required.");
   process.exit(1);
 }
-
-let supabaseUrl: string;
 try {
-  const parsedUrl = new URL(rawSupabaseUrl);
-  const hasPath = parsedUrl.pathname.split("/").some(Boolean);
-  if ((parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") || hasPath || parsedUrl.search || parsedUrl.hash) throw new Error();
-  supabaseUrl = parsedUrl.origin;
+  const parsed = new URL(supabaseUrl);
+  if ((parsed.protocol !== "http:" && parsed.protocol !== "https:") || parsed.pathname !== "/" || parsed.search || parsed.hash) throw new Error();
 } catch {
   console.error("SUPABASE_URL must be the project URL without /rest/v1.");
   process.exit(1);
 }
-
 const password = await readSecret("Password: ");
 const confirmation = await readSecret("Confirm password: ");
-
 if (password.length < 12 || password !== confirmation) {
   console.error("Passwords must match and be at least 12 characters.");
   process.exit(1);
 }
 
-const response = await fetch(`${supabaseUrl}/rest/v1/admin_users?on_conflict=username`, {
+const authResponse = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
   method: "POST",
-  headers: {
-    apikey: serviceRoleKey,
-    Authorization: `Bearer ${serviceRoleKey}`,
-    "Content-Type": "application/json",
-    Prefer: "resolution=merge-duplicates,return=minimal",
-  },
-  body: JSON.stringify({ username, password_hash: await hashPassword(password), role: "admin", is_active: true }),
+  headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}`, "Content-Type": "application/json" },
+  body: JSON.stringify({ email, password, email_confirm: true }),
 });
-
-if (!response.ok) {
-  console.error(`Unable to create admin (${response.status}).`);
+const authBody = await authResponse.json().catch(() => null) as AuthUser & { id?: string; msg?: string } | null;
+if (!authResponse.ok || !authBody?.id) {
+  console.error(`Unable to create Auth user (${authResponse.status}): ${authBody?.msg || "request failed"}`);
   process.exit(1);
 }
-
-console.log(`Admin ${username} created.`);
+const profileResponse = await fetch(`${supabaseUrl}/rest/v1/admin_profiles`, {
+  method: "POST",
+  headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}`, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates,return=minimal" },
+  body: JSON.stringify({ id: authBody.id, role: "admin", is_active: true }),
+});
+if (!profileResponse.ok) {
+  console.error(`Auth user created, but admin profile failed (${profileResponse.status}). Complete the profile manually before login.`);
+  process.exit(1);
+}
+console.log(`Admin ${email} created.`);

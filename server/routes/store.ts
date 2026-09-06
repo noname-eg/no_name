@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Express } from "express";
 import { z } from "zod";
-import { deleteSupabaseObject, requireAdmin, supabaseRequest, uploadSupabaseObject, writeAuditLog } from "../auth";
+import { deleteSupabaseObject, loadCustomerFromRequest, requireAdmin, requireCustomer, supabaseRequest, uploadSupabaseObject, writeAuditLog } from "../auth";
 
 const productSelect = "id,name,name_en,description,description_en,category,numeric_price,original_price,sale_price,image,images,colors,sizes,badge,tag,stock,low_stock_threshold,active";
 
@@ -21,7 +21,8 @@ const orderSchema = z.object({
   }
 });
 
-const orderStatusSchema = z.object({ status: z.enum(["new", "processing", "completed", "rejected"]) });
+const orderStatusSchema = z.object({ status: z.enum(["new", "processing", "completed", "rejected"]), paymentStatus: z.enum(["pending", "verified", "rejected"]).optional(), internalNotes: z.string().trim().max(2000).optional() });
+const quoteSchema = z.object({ couponCode: z.string().trim().max(64).optional(), items: z.array(z.object({ productId: z.string().trim().min(1).max(120), quantity: z.number().int().min(1).max(99), size: z.string().trim().max(30).optional(), color: z.string().trim().max(30).optional() })).min(1).max(50) });
 const productSchema = z.object({
   id: z.string().trim().min(1).max(120),
   name: z.string().trim().min(1).max(200),
@@ -177,6 +178,41 @@ export function registerStoreRoutes(app: Express) {
     } catch (error) { console.error("Coupon deletion failed", error); res.status(400).json({ error: "Unable to delete coupon." }); }
   });
 
+  app.post("/api/store/quote", async (req, res) => {
+    const parsed = quoteSchema.safeParse(req.body);
+    if (!parsed.success) { res.status(400).json({ error: "Invalid quote." }); return; }
+    try {
+      const ids = [...new Set(parsed.data.items.map((item) => item.productId))];
+      const products = await supabaseRequest<Record<string, unknown>[]>(`products?select=${productSelect}&id=in.(${ids.map(encodeURIComponent).join(",")})&active=eq.true`);
+      const byId = new Map(products.map((product) => [String(product.id), product]));
+      let subtotal = 0;
+      const quotedItems = parsed.data.items.map((item) => {
+        const product = byId.get(item.productId);
+        const stock = Number(product?.stock ?? 0);
+        if (!product || stock < item.quantity) throw new Error("product unavailable");
+        const unitPrice = product.sale_price == null ? Number(product.numeric_price) : Number(product.sale_price);
+        subtotal += unitPrice * item.quantity;
+        return { ...item, name: String(product.name), unitPrice, total: unitPrice * item.quantity, stock };
+      });
+      let discountAmount = 0;
+      let couponCode: string | undefined;
+      if (parsed.data.couponCode?.trim()) {
+        const coupons = await supabaseRequest<Record<string, unknown>[]>(`coupons?select=code,discount,uses,max_uses,expires_at,active&code=eq.${encodeURIComponent(parsed.data.couponCode.trim().toUpperCase())}&active=eq.true&limit=1`);
+        const coupon = coupons[0];
+        if (!coupon || (coupon.expires_at && new Date(String(coupon.expires_at)) <= new Date()) || (coupon.max_uses != null && Number(coupon.uses) >= Number(coupon.max_uses))) {
+          res.status(409).json({ error: "Invalid or expired coupon." }); return;
+        }
+        couponCode = String(coupon.code);
+        discountAmount = Math.round(subtotal * Number(coupon.discount) / 100 * 100) / 100;
+      }
+      const shippingAmount = subtotal >= 2500 ? 0 : 80;
+      res.json({ items: quotedItems, subtotal, discountAmount, shippingAmount, total: Math.max(0, subtotal - discountAmount + shippingAmount), couponCode });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      res.status(message === "product unavailable" ? 409 : 503).json({ error: message === "product unavailable" ? "Product availability has changed." : "Unable to calculate quote." });
+    }
+  });
+
   app.get("/api/products", async (_req, res) => {
     try {
       const rows = await supabaseRequest<Record<string, unknown>[]>(`products?select=${productSelect}&active=eq.true&order=created_at.desc`);
@@ -260,7 +296,9 @@ export function registerStoreRoutes(app: Express) {
     }
 
     try {
-      const result = await supabaseRequest<{ id: string; order_number: string; total: number }>("rpc/create_store_order", {
+      const customer = await loadCustomerFromRequest(req);
+      const rpcName = customer ? "create_store_order_for_customer" : "create_store_order";
+      const result = await supabaseRequest<{ id: string; order_number: string; total: number }>(`rpc/${rpcName}`, {
         method: "POST",
         body: JSON.stringify({
           p_customer_name: parsed.data.customerName,
@@ -273,6 +311,7 @@ export function registerStoreRoutes(app: Express) {
           p_coupon_code: parsed.data.couponCode || null,
           p_idempotency_key: idempotencyKey,
           p_items: parsed.data.items,
+          ...(customer ? { p_customer_id: customer.id } : {}),
         }),
       });
       res.status(201).json({ order: result });
@@ -288,6 +327,13 @@ export function registerStoreRoutes(app: Express) {
       }
       res.status(503).json({ error: "Unable to create order." });
     }
+  });
+
+  app.get("/api/customer/orders", requireCustomer, async (req, res) => {
+    try {
+      const orders = await supabaseRequest<Record<string, unknown>[]>(`orders?select=*,order_items(*)&customer_id=eq.${encodeURIComponent(req.customer!.id)}&order=created_at.desc`);
+      res.json({ orders });
+    } catch (error) { console.error("Customer orders lookup failed", error); res.status(503).json({ error: "Unable to load customer orders." }); }
   });
 
   app.get("/api/admin/orders", requireAdmin, async (_req, res) => {
@@ -311,7 +357,7 @@ export function registerStoreRoutes(app: Express) {
       const orders = await supabaseRequest<Record<string, unknown>[]>(`orders?id=eq.${encodeURIComponent(orderId)}&select=id,status`, {
         method: "PATCH",
         headers: { Prefer: "return=representation" },
-        body: JSON.stringify({ status: parsed.data.status, updated_at: new Date().toISOString() }),
+        body: JSON.stringify({ status: parsed.data.status, ...(parsed.data.paymentStatus ? { payment_status: parsed.data.paymentStatus } : {}), ...(parsed.data.internalNotes !== undefined ? { internal_notes: parsed.data.internalNotes || null } : {}), updated_at: new Date().toISOString() }),
       });
       if (!orders[0]) {
         res.status(404).json({ error: "Order not found." });

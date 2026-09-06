@@ -59,6 +59,14 @@ export default function Checkout() {
     setSubmitError("");
     if (!isFormValid || submitting) return;
     setSubmitting(true);
+    const quoteResponse = await fetch("/api/store/quote", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ couponCode: appliedCoupon?.code, items: cartItems.map(({ product, quantity, size, color }) => ({ productId: product.id, quantity, size, color })) }) });
+    if (!quoteResponse.ok) {
+      const quoteError = await quoteResponse.json().catch(() => null) as { error?: string } | null;
+      setSubmitError(quoteError?.error || (isEnglish ? "The cart has changed. Please review it and try again." : "تغيرت بيانات السلة، راجعيها وحاولي مرة أخرى."));
+      setSubmitting(false);
+      return;
+    }
+    const quote = await quoteResponse.json() as { subtotal: number; discountAmount: number; shippingAmount: number; total: number };
     let receiptPath: string | undefined;
     if (paymentMethod !== "cod") {
       const receiptResponse = await fetch("/api/order-receipts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ receipt }) });
@@ -88,9 +96,9 @@ export default function Checkout() {
       id: result.order.order_number,
       date: new Date().toISOString(),
       total: Number(result.order.total),
-      subtotal,
-      discountAmount,
-      shippingAmount: shipping,
+      subtotal: quote.subtotal,
+      discountAmount: quote.discountAmount,
+      shippingAmount: quote.shippingAmount,
       couponCode: appliedCoupon?.code,
       status: "جديد",
       items: cartItems.reduce((count, item) => count + item.quantity, 0),
@@ -129,12 +137,12 @@ export default function Checkout() {
       `Payment: ${paymentLabel?.label || paymentMethod}`,
       order.transferNumber ? `Transfer number: ${order.transferNumber}` : "",
       order.receipt ? "Transfer receipt: attached to the order summary" : "",
-      `Subtotal: ${subtotal.toLocaleString("en-US")} EGP`,
-      discountAmount > 0 ? `Discount: -${discountAmount.toLocaleString("en-US")} EGP` : "",
+      `Subtotal: ${quote.subtotal.toLocaleString("en-US")} EGP`,
+      quote.discountAmount > 0 ? `Discount: -${quote.discountAmount.toLocaleString("en-US")} EGP` : "",
       "Items:",
       ...order.orderItems!.map((item) => `- ${item.name} x${item.quantity} — ${item.total.toLocaleString("en-US")} EGP`),
-      `Shipping: ${shipping === 0 ? "Free" : `${shipping} EGP`}`,
-      `Total: ${total.toLocaleString("en-US")} EGP`,
+      `Shipping: ${quote.shippingAmount === 0 ? "Free" : `${quote.shippingAmount} EGP`}`,
+      `Total: ${quote.total.toLocaleString("en-US")} EGP`,
     ].filter(Boolean).join("\n");
     const whatsapp = getSalesWhatsAppUrl(siteSettings);
     const separator = whatsapp.includes("?") ? "&" : "?";

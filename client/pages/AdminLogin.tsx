@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 
 export default function AdminLogin() {
   const navigate = useNavigate();
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -17,11 +17,11 @@ export default function AdminLogin() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ email, password }),
       });
       if (!response.ok) {
         const result = await response.json().catch(() => null) as { error?: string } | null;
-        setError(result?.error || "Invalid username or password.");
+        setError(result?.error || "Invalid email or password.");
         return;
       }
       navigate("/admin", { replace: true });
@@ -42,8 +42,8 @@ export default function AdminLogin() {
         </div>
         <form onSubmit={submitLogin} className="space-y-5">
           <label className="block text-[11px] font-bold">
-            Username
-            <input required autoComplete="username" value={username} onChange={(event) => setUsername(event.target.value)} className="mt-2 w-full border border-black/15 bg-white px-3 py-3 text-[12px] outline-none focus:border-[#1c2822]" />
+            Email
+            <input required type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} className="mt-2 w-full border border-black/15 bg-white px-3 py-3 text-[12px] outline-none focus:border-[#1c2822]" />
           </label>
           <label className="block text-[11px] font-bold">
             Password

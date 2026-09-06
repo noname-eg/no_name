@@ -15,7 +15,7 @@
 
 ### الإدارة
 
-- جلسات الإدارة وهاش كلمات المرور تعمل من الخادم.
+- تسجيل الإدارة يتم عبر Supabase Auth، والصلاحيات من `admin_profiles`؛ لا يوجد hash مخصص في مسار الدخول.
 - المنتجات قابلة للإضافة والتعديل والأرشفة عبر APIs محمية.
 - الإعدادات والأقسام والصفحات والكوبونات تحفظ عبر APIs محمية.
 - الطلبات تظهر في لوحة الإدارة ويمكن تحديث حالتها.
@@ -43,6 +43,8 @@
 
 ```text
 supabase/migrations/001_admin_security.sql
+supabase/migrations/002_store_data.sql
+supabase/migrations/003_auth_and_customer_access.sql
 ```
 
 3. أنشئ `.env` في جذر المشروع:
@@ -51,14 +53,14 @@ supabase/migrations/001_admin_security.sql
 SUPABASE_URL=https://<project-ref>.supabase.co
 SUPABASE_ANON_KEY=<public-auth-key>
 SUPABASE_SERVICE_ROLE_KEY=<new-server-only-key>
-APP_ORIGIN=http://localhost:8080
-NODE_ENV=development
+APP_ORIGIN=https://your-production-domain.example
+NODE_ENV=production
 ```
 
 4. أنشئ مديرًا:
 
 ```bash
-pnpm admin:create <username>
+pnpm admin:create <email>
 ```
 
 5. اختبر:
