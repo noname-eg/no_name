@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import type { Express } from "express";
 import { z } from "zod";
-import { createSupabaseSignedUrl, deleteSupabaseObject, loadCustomerFromRequest, requireAdmin, requireCustomer, supabaseRequest, uploadSupabaseObject, writeAuditLog } from "../auth";
+import { seedProducts } from "../../shared/seed-products";
+import { createSupabaseSignedUrl, deleteSupabaseObject, getSupabasePublicObjectUrl, loadCustomerFromRequest, requireAdmin, requireCustomer, supabaseRequest, uploadSupabaseObject, writeAuditLog } from "../auth";
 
 const productSelect = "id,name,name_en,description,description_en,category,numeric_price,original_price,sale_price,image,images,colors,sizes,badge,tag,stock,low_stock_threshold,active";
 
@@ -80,6 +81,34 @@ function mapProduct(product: Record<string, unknown>) {
 }
 
 export function registerStoreRoutes(app: Express) {
+  app.post("/api/admin/product-images", requireAdmin, async (req, res) => {
+    const parsed = z.object({ contentType: z.enum(["image/jpeg", "image/png", "image/webp"]), data: z.string().regex(/^[A-Za-z0-9+/=]+$/).max(6_000_000) }).safeParse(req.body);
+    if (!parsed.success) { res.status(400).json({ error: "Invalid product image." }); return; }
+    try {
+      const extension = parsed.data.contentType.split("/")[1];
+      const path = `products/${new Date().toISOString().slice(0, 10)}/${randomUUID()}.${extension}`;
+      await uploadSupabaseObject(path, parsed.data.contentType, Buffer.from(parsed.data.data, "base64"), "product-images");
+      await writeAuditLog("product.image.uploaded", req.admin?.id, { path });
+      res.status(201).json({ url: getSupabasePublicObjectUrl(path, "product-images"), path });
+    } catch (error) { console.error("Product image upload failed", error); res.status(503).json({ error: "Unable to upload product image." }); }
+  });
+
+  app.post("/api/admin/seed-products", requireAdmin, async (req, res) => {
+    try {
+      const existing = await supabaseRequest<Record<string, unknown>[]>("products?select=id&limit=1");
+      if (existing.length) { res.json({ seeded: false, count: 0, reason: "products_exist" }); return; }
+      let count = 0;
+      for (const value of seedProducts) {
+        const parsed = productSchema.safeParse(normalizeLegacyProduct(value));
+        if (!parsed.success) throw new Error(`Invalid seed product ${value.id}`);
+        await supabaseRequest("products?on_conflict=id", { method: "POST", headers: { Prefer: "resolution=ignore-duplicates,return=minimal" }, body: JSON.stringify(productRow(parsed.data)) });
+        count += 1;
+      }
+      await writeAuditLog("products.seeded", req.admin?.id, { count });
+      res.status(201).json({ seeded: true, count });
+    } catch (error) { console.error("Product seed failed", error); res.status(503).json({ error: "Unable to seed products." }); }
+  });
+
   app.post("/api/admin/migrate", requireAdmin, async (req, res) => {
     const body = z.object({ products: z.array(z.unknown()).optional(), settings: z.record(z.unknown()).optional(), sections: z.record(z.unknown()).optional(), pages: z.record(z.unknown()).optional(), coupons: z.array(z.unknown()).optional(), orders: z.array(z.unknown()).optional() }).safeParse(req.body);
     if (!body.success) { res.status(400).json({ error: "Invalid migration file." }); return; }

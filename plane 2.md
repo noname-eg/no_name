@@ -45,6 +45,7 @@
 supabase/migrations/001_admin_security.sql
 supabase/migrations/002_store_data.sql
 supabase/migrations/003_auth_and_customer_access.sql
+supabase/migrations/004_product_images.sql
 ```
 
 3. أنشئ `.env` في جذر المشروع:

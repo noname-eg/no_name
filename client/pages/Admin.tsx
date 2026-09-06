@@ -35,11 +35,19 @@ const sectionOptions = [
 ];
 const inputClass = "admin-input";
 
-const readFile = (file: File, callback: (value: string) => void) => {
-  const reader = new FileReader();
-  reader.onload = () => callback(String(reader.result));
-  reader.readAsDataURL(file);
-};
+async function uploadAsset(file: File) {
+  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+  if (!allowedTypes.includes(file.type) || file.size > 4 * 1024 * 1024) throw new Error("Unsupported image");
+  const data = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
+    reader.onerror = () => reject(new Error("Unable to read image"));
+    reader.readAsDataURL(file);
+  });
+  const response = await fetch("/api/admin/product-images", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contentType: file.type, data }) });
+  if (!response.ok) throw new Error("Unable to upload image");
+  return (await response.json() as { url: string }).url;
+}
 
 function AssetField({ label, value, accept, onChange, isEnglish }: { label: string; value: string; accept: string; onChange: (value: string) => void; isEnglish: boolean }) {
   return (
@@ -49,7 +57,7 @@ function AssetField({ label, value, accept, onChange, isEnglish }: { label: stri
         <input value={value.startsWith("data:") ? "ملف محلي مرفوع" : value} onChange={(event) => onChange(event.target.value)} className={`${inputClass} mt-0`} placeholder={isEnglish ? "Or paste a direct file URL" : "أو الصقي رابط الملف"} />
         <label className="flex shrink-0 cursor-pointer items-center justify-center border border-[#1c2822]/15 px-3 text-[10px] font-normal">
           <Upload size={14} />
-          <input type="file" accept={accept} className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) readFile(file, onChange); }} />
+          <input type="file" accept={accept} className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadAsset(file).then(onChange).catch(() => window.alert(isEnglish ? "Unable to upload image." : "تعذر رفع الصورة.")); }} />
         </label>
       </div>
     </label>
@@ -74,6 +82,14 @@ export default function Admin() {
 
   useEffect(() => setSettings(siteSettings), [siteSettings]);
   useEffect(() => setPageDraft(pageSettings), [pageSettings]);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/admin/seed-products", { method: "POST", credentials: "include" })
+      .then(async (response) => response.ok ? await response.json() as { seeded?: boolean } : null)
+      .then((result) => { if (!cancelled && result?.seeded) window.location.reload(); })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
 
   const lowStock = catalog.filter((product) => (product.stock ?? 0) <= (product.lowStockThreshold ?? 3));
   const sales = orders.reduce((total, order) => total + order.total, 0);

@@ -57,16 +57,21 @@ async function supabaseAuthRequest<T>(path: string, init: RequestInit = {}) {
   return await response.json() as T;
 }
 
-export async function uploadSupabaseObject(path: string, contentType: string, body: Buffer) {
+export async function uploadSupabaseObject(path: string, contentType: string, body: Buffer, bucket = "receipts") {
   const { url, serviceRoleKey } = getSupabaseConfig();
-  const response = await fetch(`${url}/storage/v1/object/${path}`, { method: "POST", headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}`, "Content-Type": contentType, "x-upsert": "false" }, body: body as unknown as BodyInit });
+  const response = await fetch(`${url}/storage/v1/object/${bucket}/${path}`, { method: "POST", headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}`, "Content-Type": contentType, "x-upsert": "false" }, body: body as unknown as BodyInit });
   if (!response.ok) throw new Error(`Supabase storage upload failed with status ${response.status}`);
 }
 
-export async function deleteSupabaseObject(path: string) {
+export async function deleteSupabaseObject(path: string, bucket = "receipts") {
   const { url, serviceRoleKey } = getSupabaseConfig();
-  const response = await fetch(`${url}/storage/v1/object/${path}`, { method: "DELETE", headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` } });
+  const response = await fetch(`${url}/storage/v1/object/${bucket}/${path}`, { method: "DELETE", headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` } });
   if (!response.ok) throw new Error(`Supabase storage delete failed with status ${response.status}`);
+}
+
+export function getSupabasePublicObjectUrl(path: string, bucket: string) {
+  const { url } = getSupabaseConfig();
+  return `${url}/storage/v1/object/public/${bucket}/${path.split("/").map(encodeURIComponent).join("/")}`;
 }
 
 export async function createSupabaseSignedUrl(path: string, expiresIn = 300) {

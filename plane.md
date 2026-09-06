@@ -57,6 +57,8 @@ DELETE /api/admin/coupons/:code
 GET    /api/admin/orders
 PATCH  /api/admin/orders/:id
 POST   /api/admin/migrate
+POST   /api/admin/seed-products
+POST   /api/admin/product-images
 ```
 
 مسارات الإدارة محمية بجلسة الإدارة ولا تعتمد على إخفاء الأزرار في React فقط.
@@ -95,7 +97,8 @@ NODE_ENV=production
 ## الملفات الأساسية
 
 - `server/auth.ts`: جلسات الإدارة وطلبات Supabase ورفع الملفات.
-- `server/routes/store.ts`: APIs المتجر والإدارة والطلبات.
+- `server/routes/store.ts`: APIs المتجر والإدارة والطلبات واستيراد المنتجات ورفع صورها.
+- `shared/seed-products.ts`: مصدر المنتجات التجريبية الـ36 للاستيراد الأولي.
 - `server/index.ts`: تسجيل Express routes.
 - `client/components/store/StoreLayout.tsx`: حالة المتجر وطلبات APIs.
 - `client/pages/Admin.tsx`: لوحة الإدارة والتصدير والاستيراد.
@@ -103,14 +106,14 @@ NODE_ENV=production
 - `client/pages/OrderSummary.tsx`: استرجاع الطلب.
 - `client/lib/store-migration.ts`: أدوات الترحيل.
 - `supabase/migrations/001_admin_security.sql`: مخطط Supabase ودالة الطلب وbucket الإيصالات.
+- `supabase/migrations/004_product_images.sql`: bucket صور المنتجات العامة.
 - `.env.example`: أسماء متغيرات البيئة فقط.
 
 ## ما يزال مفتوحًا قبل الإطلاق
 
-- تطبيق Supabase migration فعليًا على مشروع جديد واختبار RLS وStorage.
-- إنشاء واجهة تسجيل ودخول العملاء باستخدام Supabase Auth.
-- ربط `auth.uid()` بالطلبات وتطبيق سياسات قراءة العميل لطلباته فقط.
+- تطبيق Supabase migrations فعليًا على مشروع جديد واختبار RLS وStorage.
 - استبدال fallback القديم من `localStorage` بعد التأكد من اكتمال الترحيل.
+- اختبار زرع المنتجات الـ36 مرة واحدة ثم تعديل منتج وصورة من لوحة التحكم.
 - تدوير أي مفتاح `service_role` تم كشفه سابقًا.
 - اختبار Netlify Function وبيئة الإنتاج الفعلية.
 - إضافة اختبارات integration وsecurity للـ APIs.
