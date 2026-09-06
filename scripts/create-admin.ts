@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { stdin as input, stdout as output } from "node:process";
 
 type AuthUser = { id: string; email?: string };
