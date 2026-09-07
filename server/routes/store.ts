@@ -1,11 +1,10 @@
-import { randomUUID } from "node:crypto";
 import type { Express } from "express";
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { seedProducts } from "../../shared/seed-products";
 import { createSupabaseSignedUrl, deleteSupabaseObject, getSupabasePublicObjectUrl, loadCustomerFromRequest, requireAdmin, requireCustomer, supabaseRequest, uploadSupabaseObject, writeAuditLog } from "../auth";
 
-const productSelect = "id,name,name_en,description,description_en,category,numeric_price,original_price,sale_price,image,images,colors,sizes,badge,tag,stock,low_stock_threshold,active";
+const productSelect = "id,name,name_en,description,description_en,category,numeric_price,original_price,sale_price,image,images,colors,sizes,badge,tag,stock,low_stock_threshold,active,video,variants";
 
 const orderSchema = z.object({
   customerName: z.string().trim().min(2).max(120),
@@ -44,7 +43,20 @@ const productSchema = z.object({
   stock: z.number().int().nonnegative().default(0),
   lowStockThreshold: z.number().int().nonnegative().default(3),
   active: z.boolean().default(true),
+  video: z.string().url().max(2000).optional(),
+  variants: z.array(z.object({ color: z.string().trim().min(1).max(30), size: z.string().trim().min(1).max(30), stock: z.number().int().nonnegative(), active: z.boolean().default(true) })).max(100).default([]),
 });
+const storeSettingsSchema = z.record(z.unknown()).superRefine((settings, context) => {
+  for (const key of ["shippingAmount", "freeShippingThreshold"]) {
+    if (settings[key] !== undefined && (typeof settings[key] !== "number" || !Number.isFinite(settings[key]) || settings[key] < 0)) context.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: `${key} must be a non-negative number.` });
+  }
+});
+function getShippingSettings(settings: Record<string, unknown>) {
+  const shippingAmount = Number(settings.shippingAmount);
+  const freeShippingThreshold = Number(settings.freeShippingThreshold);
+  if (!Number.isFinite(shippingAmount) || shippingAmount < 0 || !Number.isFinite(freeShippingThreshold) || freeShippingThreshold < 0) throw new Error("shipping settings are not configured");
+  return { shippingAmount, freeShippingThreshold };
+}
 const couponSchema = z.object({ code: z.string().trim().min(1).max(64), discount: z.number().positive().max(100), maxUses: z.number().int().positive().optional(), expiresAt: z.string().datetime().optional(), active: z.boolean().default(true) });
 const legacyOrderSchema = z.object({ id: z.string().trim().min(1).max(200).optional(), orderNumber: z.string().trim().min(1).max(200).optional(), customerName: z.string().trim().min(2).max(120), phone: z.string().trim().regex(/^\d{7,15}$/), address: z.string().trim().min(3).max(500), notes: z.string().trim().max(1000).optional(), paymentMethod: z.enum(["cod", "wallet", "instapay"]).default("cod"), transferNumber: z.string().trim().max(120).optional(), couponCode: z.string().trim().max(64).optional(), orderItems: z.array(z.object({ productId: z.string().trim().min(1).max(120), quantity: z.number().int().min(1).max(99), size: z.string().trim().max(30).optional(), color: z.string().trim().max(30).optional() })).min(1).max(50) });
 const receiptUploadLimit = 1_000_000;
@@ -63,7 +75,7 @@ function productRow(product: z.infer<typeof productSchema>) {
     id: product.id, name: product.name, name_en: product.nameEn || null, description: product.description || null, description_en: product.descriptionEn || null,
     category: product.category, numeric_price: product.numericPrice, original_price: product.originalPrice ?? null, sale_price: product.salePrice ?? null,
     image: product.image, images: product.images, colors: product.colors, sizes: product.sizes, badge: product.badge || null, tag: product.tag || null,
-    stock: product.stock, low_stock_threshold: product.lowStockThreshold, active: product.active,
+    stock: product.stock, low_stock_threshold: product.lowStockThreshold, active: product.active, video: product.video || null, variants: product.variants,
   };
 }
 
@@ -89,6 +101,8 @@ function mapProduct(product: Record<string, unknown>) {
     images: product.images || [],
     colors: product.colors || [],
     sizes: product.sizes || [],
+    video: product.video || undefined,
+    variants: Array.isArray(product.variants) ? product.variants : [],
   };
 }
 
@@ -103,6 +117,20 @@ export function registerStoreRoutes(app: Express) {
       await writeAuditLog("product.image.uploaded", req.admin?.id, { path });
       res.status(201).json({ url: getSupabasePublicObjectUrl(path, "product-images"), path });
     } catch (error) { console.error("Product image upload failed", error); res.status(503).json({ error: "Unable to upload product image." }); }
+  });
+
+  app.post("/api/admin/product-videos", requireAdmin, async (req, res) => {
+    const parsed = z.object({ contentType: z.enum(["video/mp4", "video/webm", "video/quicktime"]), data: z.string().regex(/^[A-Za-z0-9+/=]+$/).max(28_000_000) }).safeParse(req.body);
+    if (!parsed.success) { res.status(400).json({ error: "Invalid product video." }); return; }
+    const body = Buffer.from(parsed.data.data, "base64");
+    if (body.length > 20 * 1024 * 1024) { res.status(413).json({ error: "Product video is too large." }); return; }
+    try {
+      const extension = parsed.data.contentType === "video/quicktime" ? "mov" : parsed.data.contentType.split("/")[1];
+      const path = `products/videos/${new Date().toISOString().slice(0, 10)}/${randomUUID()}.${extension}`;
+      await uploadSupabaseObject(path, parsed.data.contentType, body, "product-videos");
+      await writeAuditLog("product.video.uploaded", req.admin?.id, { path });
+      res.status(201).json({ url: getSupabasePublicObjectUrl(path, "product-videos"), path });
+    } catch (error) { console.error("Product video upload failed", error); res.status(503).json({ error: "Unable to upload product video." }); }
   });
 
   app.post("/api/admin/seed-products", requireAdmin, async (req, res) => {
@@ -208,7 +236,7 @@ export function registerStoreRoutes(app: Express) {
   });
 
   app.put("/api/admin/store-settings", requireAdmin, async (req, res) => {
-    const data = z.record(z.unknown()).safeParse(req.body);
+    const data = storeSettingsSchema.safeParse(req.body);
     if (!data.success) { res.status(400).json({ error: "Invalid settings." }); return; }
     try {
       const rows = await supabaseRequest<Record<string, unknown>[]>("site_settings?on_conflict=id", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=representation" }, body: JSON.stringify({ id: true, data: data.data, updated_at: new Date().toISOString() }) });
@@ -268,8 +296,11 @@ export function registerStoreRoutes(app: Express) {
       let subtotal = 0;
       const quotedItems = parsed.data.items.map((item) => {
         const product = byId.get(item.productId);
-        const stock = Number(product?.stock ?? 0);
-        if (!product || stock < item.quantity) throw new Error("product unavailable");
+        if (!product) throw new Error("product unavailable");
+        const variants = Array.isArray(product.variants) ? product.variants as Array<{ color: string; size: string; stock: number; active: boolean }> : [];
+        const selectedVariant = variants.length ? variants.find((variant) => variant.active && variant.color === item.color && variant.size === item.size) : undefined;
+        const stock = selectedVariant ? Number(selectedVariant.stock) : variants.length ? 0 : Number(product.stock ?? 0);
+        if (stock < item.quantity) throw new Error("product unavailable");
         const unitPrice = product.sale_price == null ? Number(product.numeric_price) : Number(product.sale_price);
         subtotal += unitPrice * item.quantity;
         return { ...item, name: String(product.name), unitPrice, total: unitPrice * item.quantity, stock };
@@ -285,7 +316,9 @@ export function registerStoreRoutes(app: Express) {
         couponCode = String(coupon.code);
         discountAmount = Math.round(subtotal * Number(coupon.discount) / 100 * 100) / 100;
       }
-      const shippingAmount = subtotal >= 2500 ? 0 : 80;
+      const settingsRows = await supabaseRequest<{ data: Record<string, unknown> }[]>("site_settings?select=data&id=eq.true&limit=1");
+      const { shippingAmount: configuredShipping, freeShippingThreshold } = getShippingSettings(settingsRows[0]?.data || {});
+      const shippingAmount = subtotal >= freeShippingThreshold ? 0 : configuredShipping;
       res.json({ items: quotedItems, subtotal, discountAmount, shippingAmount, total: Math.max(0, subtotal - discountAmount + shippingAmount), couponCode });
     } catch (error) {
       const message = error instanceof Error ? error.message : "";

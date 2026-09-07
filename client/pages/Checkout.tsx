@@ -29,7 +29,7 @@ export default function Checkout() {
 
   const appliedCoupon = coupons.find((coupon) => coupon.code === appliedCouponCode && coupon.active) || null;
   const subtotal = cartItems.reduce((total, item) => total + getProductUnitPrice(item.product) * item.quantity, 0);
-  const shipping = subtotal >= 2500 || subtotal === 0 ? 0 : 80;
+  const shipping = subtotal === 0 || (siteSettings.freeShippingThreshold !== undefined && subtotal >= siteSettings.freeShippingThreshold) ? 0 : (siteSettings.shippingAmount ?? 0);
   const discountAmount = appliedCoupon ? (subtotal * appliedCoupon.discount) / 100 : 0;
   const total = Math.max(0, subtotal - discountAmount + shipping);
   const transferNumber = paymentMethod === "wallet" ? siteSettings.walletNumber : siteSettings.instapayNumber;

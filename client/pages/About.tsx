@@ -30,7 +30,7 @@ export function InfoPage({ type }: { type: "shipping" | "contact" }) {
 }
 
 export default function About() {
-  const { language, pageSettings } = useStore();
+  const { language, pageSettings, siteSettings } = useStore();
   const isEnglish = language === "en";
   const page = pageSettings.about;
   return (
@@ -43,7 +43,7 @@ export default function About() {
         <div className="mt-16 grid gap-4 sm:grid-cols-[1.2fr_.8fr]"><img src={page.image1} alt={isEnglish ? "The no name team working on a design" : "فريق no name يعمل على التصميم"} className="aspect-[1.25] h-full w-full object-cover" /><img src={page.image2} alt={isEnglish ? "no name fabrics and details" : "خامات وتفاصيل no name"} className="aspect-[.8] h-full w-full object-cover" /></div>
       </section>
       <section className="bg-[#1c2822] px-5 py-20 text-[#f6f3ee] lg:px-8 lg:py-28"><div className="mx-auto grid max-w-[1000px] gap-16 lg:grid-cols-2"><div><p className="mb-5 text-[10px] font-bold tracking-[0.2em] text-[#d4775c]">WHAT WE BELIEVE</p><h2 className="font-serif text-5xl leading-tight whitespace-pre-line">{isEnglish ? page.beliefTitleEn : page.beliefTitleAr}</h2></div><div className="space-y-8 text-[14px] leading-8 text-[#f6f3ee]/65"><p>{isEnglish ? page.bodyEn : page.bodyAr}</p><p>{isEnglish ? page.body2En : page.body2Ar}</p><Link to="/shop" className="inline-flex items-center gap-5 border-b border-[#f6f3ee]/50 pb-3 text-[11px] font-bold text-[#f6f3ee]">{isEnglish ? "Discover the pieces" : "اكتشفي القطع"}<ArrowLeft size={16} /></Link></div></div></section>
-      <section className="mx-auto max-w-[1000px] px-5 py-20 lg:px-8 lg:py-28"><div className="grid gap-10 text-center sm:grid-cols-3"><div><p className="font-serif text-5xl text-[#d4775c]">٢٠٢٤</p><p className="mt-3 text-[11px] text-[#1c2822]/55">{isEnglish ? "Founded" : "سنة التأسيس"}</p></div><div><p className="font-serif text-5xl text-[#d4775c]">١٠٠٪</p><p className="mt-3 text-[11px] text-[#1c2822]/55">{isEnglish ? "Made in Egypt" : "صناعة مصرية"}</p></div><div><p className="font-serif text-5xl text-[#d4775c]">∞</p><p className="mt-3 text-[11px] text-[#1c2822]/55">{isEnglish ? "Endless ways" : "طريقة لا تنتهي"}</p></div></div></section>
+      <section className="mx-auto max-w-[1000px] px-5 py-20 lg:px-8 lg:py-28"><div className="grid gap-10 text-center sm:grid-cols-3"><div><p className="font-serif text-5xl text-[#d4775c]">٢٠٢٤</p><p className="mt-3 text-[11px] text-[#1c2822]/55">{isEnglish ? "Founded" : "سنة التأسيس"}</p></div>{(isEnglish ? siteSettings.madeInMessageEn : siteSettings.madeInMessageAr) && <div><p className="font-serif text-5xl text-[#d4775c]">١٠٠٪</p><p className="mt-3 text-[11px] text-[#1c2822]/55">{isEnglish ? siteSettings.madeInMessageEn : siteSettings.madeInMessageAr}</p></div>}<div><p className="font-serif text-5xl text-[#d4775c]">∞</p><p className="mt-3 text-[11px] text-[#1c2822]/55">{isEnglish ? "Endless ways" : "طريقة لا تنتهي"}</p></div></div></section>
     </>
   );
 }

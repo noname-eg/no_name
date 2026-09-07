@@ -8,7 +8,7 @@ const sizes = ["S", "M", "L", "XL", "XXL"];
 
 export default function Product() {
   const { id } = useParams();
-  const { catalog, addToCart, liked, toggleLike, language } = useStore();
+  const { catalog, addToCart, liked, toggleLike, language, siteSettings } = useStore();
   const isEnglish = language === "en";
   const product = catalog.find((item) => item.id === id);
   if (!product) return <NotFound />;
@@ -17,10 +17,10 @@ export default function Product() {
   const galleryImages = product.images?.length ? product.images.slice(0, 5) : [product.image, product.image, product.image];
   const [selectedThumbnail, setSelectedThumbnail] = useState(0);
   const [quantity, setQuantity] = useState(1);
-  const [selectedSize, setSelectedSize] = useState("L");
-  const availableColors = product.colors?.length ? product.colors : ["#eeeae0", "#202320"];
-  const availableSizes = product.sizes === undefined ? sizes : product.sizes;
+  const availableColors = product.variants?.length ? [...new Set(product.variants.filter((variant) => variant.active).map((variant) => variant.color))] : (product.colors?.length ? product.colors : ["#eeeae0", "#202320"]);
   const [selectedColor, setSelectedColor] = useState(availableColors[0]);
+  const availableSizes = product.variants?.length ? [...new Set(product.variants.filter((variant) => variant.active && variant.color === selectedColor).map((variant) => variant.size))] : (product.sizes === undefined ? sizes : product.sizes);
+  const [selectedSize, setSelectedSize] = useState(availableSizes[0] || "L");
   const [added, setAdded] = useState(false);
   const index = catalog.indexOf(product);
   useEffect(() => { setSelectedThumbnail(0); }, [product.id]);
@@ -58,7 +58,7 @@ export default function Product() {
           <div className="lg:pt-3">
             <div className="flex items-start justify-between gap-5">
               <div>
-                <p className="mb-3 text-[10px] font-medium text-black/45">{getCategoryName(product.category, language)} · {isEnglish ? "Made in Egypt" : "صناعة مصرية"}</p>
+                <p className="mb-3 text-[10px] font-medium text-black/45">{getCategoryName(product.category, language)}{(isEnglish ? siteSettings.madeInMessageEn : siteSettings.madeInMessageAr) ? ` · ${isEnglish ? siteSettings.madeInMessageEn : siteSettings.madeInMessageAr}` : ""}</p>
                 <h1 className="text-[25px] font-semibold leading-[1.5] tracking-[-0.03em] sm:text-[30px]">{productName}</h1>
                 <p className="mt-2 text-[16px] font-medium">{getProductPrice(product, language)}</p>
               </div>
@@ -68,7 +68,7 @@ export default function Product() {
             </div>
 
             <div className="mt-5 space-y-2 rounded-[3px] bg-[#eff8ee] px-4 py-3 text-[10px] leading-6 text-[#3f7545]">
-              <p><Check className="ml-1 inline-block" size={13} /> {isEnglish ? "Free shipping on orders over EGP 2,500" : "شحن مجاني للطلبات فوق ٢٥٠٠ جنيه"}</p>
+              {(isEnglish ? siteSettings.shippingMessageEn : siteSettings.shippingMessageAr) && <p><Check className="ml-1 inline-block" size={13} /> {isEnglish ? siteSettings.shippingMessageEn : siteSettings.shippingMessageAr}</p>}
               <p><Truck className="ml-1 inline-block" size={13} /> {isEnglish ? "Ready to ship within 2–48 hours" : "متوفر للشحن خلال ٢–٤٨ ساعة"}</p>
             </div>
 
@@ -125,10 +125,8 @@ export default function Product() {
               <h2 className="mb-4 text-[13px] font-semibold">{isEnglish ? "Description" : "الوصف"}</h2>
               <p className="text-[11px] leading-7 text-black/65">{productDescription}</p>
               <ul className="mt-3 space-y-1 text-[11px] leading-6 text-black/65">
-                <li>• {isEnglish ? "100% made in Egypt" : "صناعة مصرية ١٠٠٪"}</li>
+                {(isEnglish ? siteSettings.madeInMessageEn : siteSettings.madeInMessageAr) && <li>• {isEnglish ? siteSettings.madeInMessageEn : siteSettings.madeInMessageAr}</li>}
                 <li>• {isEnglish ? "Comfortable fabric for everyday wear" : "خامة مريحة ومناسبة للاستخدام اليومي"}</li>
-                <li>• {isEnglish ? "Ships within 2–4 business days" : "الشحن خلال ٢–٤ أيام عمل"}</li>
-                <li>• {isEnglish ? "Free exchange within 14 days" : "استبدال مجاني خلال ١٤ يوم"}</li>
               </ul>
             </div>
 
@@ -144,7 +142,7 @@ export default function Product() {
                   <li>{isEnglish ? "Orders ship within 2–5 business days" : "يتم شحن الطلبات خلال ٢–٥ أيام عمل"}</li>
                   <li>{isEnglish ? "Packed safely to protect your piece" : "تم تغليفها بطريقة آمنة للحفاظ على القطعة"}</li>
                 </ul>
-                <p className="mt-4">{isEnglish ? "Our support team is happy to help with delivery questions." : "لأي استفسارات تتعلق بالتوصيل، يسعد فريق الدعم لدينا بتقديم المساعدة."}</p>
+                {(isEnglish ? siteSettings.returnsMessageEn : siteSettings.returnsMessageAr) && <p className="mt-4">{isEnglish ? siteSettings.returnsMessageEn : siteSettings.returnsMessageAr}</p>}
               </div>
             </div>
 

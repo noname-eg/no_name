@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { getCategoryName, getProductName, getProductPrice, getProductUnitPrice, useStore } from "@/components/store/StoreLayout";
 
 export default function Cart() {
-  const { cartItems, updateQuantity, removeFromCart, language, coupons, appliedCouponCode, setAppliedCouponCode } = useStore();
+  const { cartItems, updateQuantity, removeFromCart, language, coupons, appliedCouponCode, setAppliedCouponCode, siteSettings } = useStore();
   const isEnglish = language === "en";
   const [couponInput, setCouponInput] = useState("");
   const [couponError, setCouponError] = useState("");
@@ -15,7 +15,7 @@ export default function Cart() {
   }, [appliedCouponCode, coupons]);
 
   const subtotal = cartItems.reduce((total, item) => total + getProductUnitPrice(item.product) * item.quantity, 0);
-  const shipping = subtotal >= 2500 || subtotal === 0 ? 0 : 80;
+  const shipping = subtotal === 0 || (siteSettings.freeShippingThreshold !== undefined && subtotal >= siteSettings.freeShippingThreshold) ? 0 : (siteSettings.shippingAmount ?? 0);
   const discountAmount = appliedCoupon ? (subtotal * appliedCoupon.discount) / 100 : 0;
   const total = Math.max(0, subtotal - discountAmount + shipping);
 
