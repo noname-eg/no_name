@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Express } from "express";
+import { createHash, randomBytes } from "node:crypto";
 import { z } from "zod";
 import { seedProducts } from "../../shared/seed-products";
 import { createSupabaseSignedUrl, deleteSupabaseObject, getSupabasePublicObjectUrl, loadCustomerFromRequest, requireAdmin, requireCustomer, supabaseRequest, uploadSupabaseObject, writeAuditLog } from "../auth";
@@ -45,6 +46,17 @@ const productSchema = z.object({
   active: z.boolean().default(true),
 });
 const couponSchema = z.object({ code: z.string().trim().min(1).max(64), discount: z.number().positive().max(100), maxUses: z.number().int().positive().optional(), expiresAt: z.string().datetime().optional(), active: z.boolean().default(true) });
+const legacyOrderSchema = z.object({ id: z.string().trim().min(1).max(200).optional(), orderNumber: z.string().trim().min(1).max(200).optional(), customerName: z.string().trim().min(2).max(120), phone: z.string().trim().regex(/^\d{7,15}$/), address: z.string().trim().min(3).max(500), notes: z.string().trim().max(1000).optional(), paymentMethod: z.enum(["cod", "wallet", "instapay"]).default("cod"), transferNumber: z.string().trim().max(120).optional(), couponCode: z.string().trim().max(64).optional(), orderItems: z.array(z.object({ productId: z.string().trim().min(1).max(120), quantity: z.number().int().min(1).max(99), size: z.string().trim().max(30).optional(), color: z.string().trim().max(30).optional() })).min(1).max(50) });
+const receiptUploadLimit = 1_000_000;
+const receiptRate = new Map<string, { count: number; resetAt: number }>();
+function requestKey(req: { ip?: string; socket: { remoteAddress?: string | undefined } }) { return req.ip || req.socket.remoteAddress || "unknown"; }
+function receiptRateLimited(key: string) {
+  const current = receiptRate.get(key);
+  if (!current || current.resetAt <= Date.now()) { receiptRate.set(key, { count: 1, resetAt: Date.now() + 15 * 60 * 1000 }); return false; }
+  current.count += 1;
+  return current.count > 5;
+}
+function hashToken(token: string) { return createHash("sha256").update(token).digest("hex"); }
 
 function productRow(product: z.infer<typeof productSchema>) {
   return {
@@ -131,6 +143,8 @@ export function registerStoreRoutes(app: Express) {
       if (body.data.pages) await supabaseRequest("page_settings?on_conflict=id", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ id: true, data: body.data.pages }) });
       let coupons = 0;
       let rejectedCoupons = 0;
+      let orders = 0;
+      let rejectedOrders = 0;
       for (const value of body.data.coupons || []) {
         const parsed = couponSchema.safeParse(value);
         if (!parsed.success) {
@@ -141,8 +155,25 @@ export function registerStoreRoutes(app: Express) {
         await supabaseRequest("coupons?on_conflict=code", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ code: parsed.data.code.toUpperCase(), discount: parsed.data.discount, uses: 0, max_uses: parsed.data.maxUses ?? null, expires_at: parsed.data.expiresAt ?? null, active: parsed.data.active }) });
         coupons += 1;
       }
-      await writeAuditLog("store.migrated", req.admin?.id, { products, coupons, rejectedProducts, rejectedCoupons, ordersSkipped: (body.data.orders || []).length });
-      res.json({ imported: { products, coupons }, rejected: { products: rejectedProducts, coupons: rejectedCoupons, details: rejectedDetails }, ordersSkipped: (body.data.orders || []).length });
+      for (const value of body.data.orders || []) {
+        const parsed = legacyOrderSchema.safeParse(value);
+        if (!parsed.success) {
+          rejectedOrders += 1;
+          if (rejectedDetails.length < 20) rejectedDetails.push(`order: ${parsed.error.issues[0]?.message || "invalid data"}`);
+          continue;
+        }
+        const idempotencyKey = `legacy-${parsed.data.id || parsed.data.orderNumber || randomUUID()}`.slice(0, 200);
+        const accessToken = randomBytes(32).toString("hex");
+        try {
+          await supabaseRequest("rpc/create_store_order_secure", { method: "POST", body: JSON.stringify({ p_customer_name: parsed.data.customerName, p_phone: parsed.data.phone, p_address: parsed.data.address, p_notes: parsed.data.notes || null, p_payment_method: parsed.data.paymentMethod, p_transfer_number: parsed.data.transferNumber || null, p_receipt: null, p_coupon_code: parsed.data.couponCode || null, p_idempotency_key: idempotencyKey, p_items: parsed.data.orderItems, p_access_token_hash: hashToken(accessToken) }) });
+          orders += 1;
+        } catch (error) {
+          rejectedOrders += 1;
+          if (rejectedDetails.length < 20) rejectedDetails.push(`order: ${error instanceof Error ? error.message : "unable to import"}`);
+        }
+      }
+      await writeAuditLog("store.migrated", req.admin?.id, { products, coupons, orders, rejectedProducts, rejectedCoupons, rejectedOrders });
+      res.json({ imported: { products, coupons, orders }, rejected: { products: rejectedProducts, coupons: rejectedCoupons, orders: rejectedOrders, details: rejectedDetails } });
     } catch (error) { console.error("Store migration failed", error); res.status(400).json({ error: "Unable to import migration file." }); }
   });
 
@@ -314,10 +345,10 @@ export function registerStoreRoutes(app: Express) {
 
   app.get("/api/orders/:orderNumber", async (req, res) => {
     const orderNumber = String(req.params.orderNumber);
-    const phone = typeof req.query.phone === "string" ? req.query.phone.trim() : "";
-    if (!phone || phone.length < 7) { res.status(400).json({ error: "Phone verification is required." }); return; }
+    const accessToken = typeof req.query.token === "string" ? req.query.token.trim() : "";
+    if (accessToken.length < 32) { res.status(400).json({ error: "Order access token is required." }); return; }
     try {
-      const orders = await supabaseRequest<Record<string, unknown>[]>(`orders?select=*,order_items(*)&order_number=eq.${encodeURIComponent(orderNumber)}&phone=eq.${encodeURIComponent(phone)}&limit=1`);
+      const orders = await supabaseRequest<Record<string, unknown>[]>(`orders?select=id,order_number,customer_name,phone,address,notes,payment_method,transfer_number,subtotal,discount_amount,shipping_amount,total,coupon_code,status,created_at,order_items(*)&order_number=eq.${encodeURIComponent(orderNumber)}&access_token_hash=eq.${encodeURIComponent(hashToken(accessToken))}&limit=1`);
       const order = orders[0];
       if (!order) { res.status(404).json({ error: "Order not found." }); return; }
       res.json({ order });
@@ -325,14 +356,19 @@ export function registerStoreRoutes(app: Express) {
   });
 
   app.post("/api/order-receipts", async (req, res) => {
-    const parsed = z.object({ receipt: z.string().max(1_500_000) }).safeParse(req.body);
+    if (receiptRateLimited(requestKey(req))) { res.status(429).json({ error: "Too many receipt uploads. Try again later." }); return; }
+    const parsed = z.object({ receipt: z.string().max(receiptUploadLimit * 2) }).safeParse(req.body);
     if (!parsed.success) { res.status(400).json({ error: "Invalid receipt." }); return; }
     const match = parsed.data.receipt.match(/^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/);
     if (!match) { res.status(400).json({ error: "Only PNG, JPEG, or WebP receipts are supported." }); return; }
+    const body = Buffer.from(match[2], "base64");
+    if (body.length > receiptUploadLimit) { res.status(413).json({ error: "Receipt is too large." }); return; }
     try {
       const path = `receipts/${new Date().toISOString().slice(0, 10)}/${randomUUID()}.${match[1].split("/")[1].replace("jpeg", "jpg")}`;
-      await uploadSupabaseObject(path, match[1], Buffer.from(match[2], "base64"));
-      res.status(201).json({ path });
+      const token = randomBytes(32).toString("hex");
+      await uploadSupabaseObject(path, match[1], body);
+      await supabaseRequest("receipt_uploads", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ token_hash: hashToken(token), path, expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString() }) });
+      res.status(201).json({ token });
     } catch (error) { console.error("Receipt upload failed", error); res.status(503).json({ error: "Unable to upload receipt." }); }
   });
 
@@ -344,9 +380,16 @@ export function registerStoreRoutes(app: Express) {
       return;
     }
 
+    let receiptPath: string | null = null;
     try {
       const customer = await loadCustomerFromRequest(req);
-      const rpcName = customer ? "create_store_order_for_customer" : "create_store_order";
+      const orderAccessToken = randomBytes(32).toString("hex");
+      if (parsed.data.receipt) {
+        const uploads = await supabaseRequest<{ path: string }[]>(`receipt_uploads?select=path&token_hash=eq.${encodeURIComponent(hashToken(parsed.data.receipt))}&expires_at=gt.${encodeURIComponent(new Date().toISOString())}&claimed_at=is.null&limit=1`);
+        receiptPath = uploads[0]?.path || null;
+        if (!receiptPath) { res.status(400).json({ error: "Receipt upload has expired or is invalid." }); return; }
+      }
+      const rpcName = customer ? "create_store_order_for_customer_secure" : "create_store_order_secure";
       const result = await supabaseRequest<{ id: string; order_number: string; total: number }>(`rpc/${rpcName}`, {
         method: "POST",
         body: JSON.stringify({
@@ -356,18 +399,18 @@ export function registerStoreRoutes(app: Express) {
           p_notes: parsed.data.notes,
           p_payment_method: parsed.data.paymentMethod,
           p_transfer_number: parsed.data.transferNumber || null,
-          p_receipt: parsed.data.receipt || null,
+          p_receipt: receiptPath,
           p_coupon_code: parsed.data.couponCode || null,
           p_idempotency_key: idempotencyKey,
           p_items: parsed.data.items,
+          p_access_token_hash: hashToken(orderAccessToken),
           ...(customer ? { p_customer_id: customer.id } : {}),
         }),
       });
-      res.status(201).json({ order: result });
+      if (parsed.data.receipt) await supabaseRequest(`receipt_uploads?token_hash=eq.${encodeURIComponent(hashToken(parsed.data.receipt))}&claimed_at=is.null`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ claimed_at: new Date().toISOString() }) });
+      res.status(201).json({ order: { ...result, access_token: orderAccessToken } });
     } catch (error) {
-      if (parsed.data.receipt?.startsWith("receipts/")) {
-        await deleteSupabaseObject(parsed.data.receipt).catch((cleanupError) => console.error("Receipt cleanup failed", cleanupError));
-      }
+      if (receiptPath) await deleteSupabaseObject(receiptPath).catch((cleanupError) => console.error("Receipt cleanup failed", cleanupError));
       console.error("Order creation failed", error);
       const message = error instanceof Error ? error.message : "";
       if (message.includes("product unavailable") || message.includes("invalid coupon")) {

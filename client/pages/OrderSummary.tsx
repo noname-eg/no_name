@@ -10,8 +10,8 @@ export default function OrderSummary() {
   const [remoteOrder, setRemoteOrder] = useState<StoreOrder | undefined>();
   useEffect(() => {
     if (!id) return;
-    const phone = sessionStorage.getItem(`no-name-order-phone:${id}`);
-    const endpoint = phone ? `/api/orders/${encodeURIComponent(id)}?phone=${encodeURIComponent(phone)}` : "/api/customer/orders";
+    const token = sessionStorage.getItem(`no-name-order-token:${id}`);
+    const endpoint = token ? `/api/orders/${encodeURIComponent(id)}?token=${encodeURIComponent(token)}` : "/api/customer/orders";
     fetch(endpoint, { credentials: "include" })
       .then((response) => response.ok ? response.json() : null)
       .then((data: { order?: Record<string, unknown>; orders?: Record<string, unknown>[] } | null) => {

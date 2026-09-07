@@ -67,7 +67,7 @@ export default function Checkout() {
       return;
     }
     const quote = await quoteResponse.json() as { subtotal: number; discountAmount: number; shippingAmount: number; total: number };
-    let receiptPath: string | undefined;
+    let receiptToken: string | undefined;
     if (paymentMethod !== "cod") {
       const receiptResponse = await fetch("/api/order-receipts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ receipt }) });
       if (!receiptResponse.ok) {
@@ -75,14 +75,14 @@ export default function Checkout() {
         setSubmitting(false);
         return;
       }
-      receiptPath = (await receiptResponse.json() as { path: string }).path;
+      receiptToken = (await receiptResponse.json() as { token: string }).token;
     }
     const response = await fetch("/api/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
       body: JSON.stringify({
         customerName: form.customerName.trim(), phone: form.phone.trim(), address: form.address.trim(), notes: form.notes.trim(),
-        paymentMethod, transferNumber: paymentMethod === "cod" ? undefined : transferNumber, receipt: receiptPath,
+        paymentMethod, transferNumber: paymentMethod === "cod" ? undefined : transferNumber, receipt: receiptToken,
         couponCode: appliedCoupon?.code, items: cartItems.map(({ product, quantity, size, color }) => ({ productId: product.id, quantity, size, color })),
       }),
     });
@@ -91,7 +91,7 @@ export default function Checkout() {
       setSubmitting(false);
       return;
     }
-    const result = await response.json() as { order: { id: string; order_number: string; total: number } };
+    const result = await response.json() as { order: { id: string; order_number: string; total: number; access_token: string } };
     const order: StoreOrder = {
       id: result.order.order_number,
       date: new Date().toISOString(),
@@ -108,7 +108,7 @@ export default function Checkout() {
       notes: form.notes.trim(),
       paymentMethod,
       transferNumber: paymentMethod === "cod" ? undefined : transferNumber,
-      receipt: receiptPath,
+      receipt: receiptToken,
       orderItems: cartItems.map(({ product, quantity, size, color }) => {
         const unitPrice = getProductUnitPrice(product);
         return {
@@ -148,7 +148,7 @@ export default function Checkout() {
     const separator = whatsapp.includes("?") ? "&" : "?";
     const whatsappUrl = `${whatsapp}${separator}text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, "_blank", "noopener,noreferrer");
-    sessionStorage.setItem(`no-name-order-phone:${order.id}`, order.phone || "");
+    sessionStorage.setItem(`no-name-order-token:${order.id}`, result.order.access_token);
     navigate(`/order-summary/${order.id}`);
   };
 

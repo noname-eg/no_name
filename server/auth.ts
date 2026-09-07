@@ -90,6 +90,12 @@ function isRateLimited(key: string) { const attempt = loginAttempts.get(key); if
 function recordFailedAttempt(key: string) { const current = loginAttempts.get(key); if (!current || current.resetAt <= Date.now()) loginAttempts.set(key, { count: 1, resetAt: Date.now() + LOGIN_WINDOW_MS }); else current.count += 1; }
 function clearFailedAttempts(key: string) { loginAttempts.delete(key); }
 const loginRateLimit: RequestHandler = (req, res, next) => { if (isRateLimited(getClientKey(req))) { res.status(429).json({ error: "Too many login attempts. Try again later." }); return; } next(); };
+const registrationRateLimit: RequestHandler = (req, res, next) => {
+  const key = `register:${getClientKey(req)}`;
+  if (isRateLimited(key)) { res.status(429).json({ error: "Too many registration attempts. Try again later." }); return; }
+  recordFailedAttempt(key);
+  next();
+};
 
 function setSessionCookie(res: Response, token: string) {
   const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
@@ -159,7 +165,7 @@ export function registerAuthRoutes(app: Express) {
   app.get("/api/admin/session", async (req, res) => { try { const admin = await loadAdminFromRequest(req); if (!admin) { res.status(401).json({ authenticated: false }); return; } res.json({ authenticated: true, user: { id: admin.id, email: admin.email, role: admin.role } }); } catch { res.status(503).json({ error: "Admin authentication is not configured." }); } });
   app.get("/api/admin/check", requireAdmin, (req, res) => { res.json({ authenticated: true, user: { id: req.admin!.id, email: req.admin!.email, role: req.admin!.role } }); });
 
-  app.post("/api/customer/register", async (req, res) => {
+  app.post("/api/customer/register", registrationRateLimit, async (req, res) => {
     const parsed = customerRegistrationSchema.safeParse(req.body);
     if (!parsed.success) { res.status(400).json({ error: "Invalid customer data." }); return; }
     try {
@@ -171,11 +177,16 @@ export function registerAuthRoutes(app: Express) {
       res.status(201).json({ authenticated: true, user: { id: auth.id, email } });
     } catch (error) { console.error("Customer registration failed", error); res.status(409).json({ error: "Unable to create customer account." }); }
   });
-  app.post("/api/customer/login", async (req, res) => {
+  app.post("/api/customer/login", loginRateLimit, async (req, res) => {
+    const clientKey = getClientKey(req);
     const parsed = loginSchema.safeParse(req.body);
-    if (!parsed.success) { res.status(401).json({ error: "Invalid email or password." }); return; }
-    try { const session = await supabaseAuthRequest<{ access_token: string; user: CustomerUser }>("token?grant_type=password", { method: "POST", body: JSON.stringify(parsed.data) }); setCustomerSessionCookie(res, session.access_token); res.json({ authenticated: true, user: session.user }); }
-    catch { res.status(401).json({ error: "Invalid email or password." }); }
+    if (!parsed.success) { recordFailedAttempt(clientKey); res.status(401).json({ error: "Invalid email or password." }); return; }
+    try {
+      const session = await supabaseAuthRequest<{ access_token: string; user: CustomerUser }>("token?grant_type=password", { method: "POST", body: JSON.stringify(parsed.data) });
+      clearFailedAttempts(clientKey);
+      setCustomerSessionCookie(res, session.access_token);
+      res.json({ authenticated: true, user: session.user });
+    } catch { recordFailedAttempt(clientKey); res.status(401).json({ error: "Invalid email or password." }); }
   });
   app.post("/api/customer/logout", async (_req, res) => { clearCustomerSessionCookie(res); res.status(204).send(); });
   app.get("/api/customer/session", async (req, res) => { const user = await loadCustomerFromRequest(req); if (!user) { res.status(401).json({ authenticated: false }); return; } res.json({ authenticated: true, user }); });

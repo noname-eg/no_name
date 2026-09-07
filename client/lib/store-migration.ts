@@ -55,8 +55,7 @@ export async function importLegacyStoreData(file: File) {
   });
   if (!response.ok) throw new Error("Unable to import store data");
   return response.json() as Promise<{
-    imported: { products: number; coupons: number };
-    rejected: { products: number; coupons: number; details: string[] };
-    ordersSkipped: number;
+    imported: { products: number; coupons: number; orders: number };
+    rejected: { products: number; coupons: number; orders: number; details: string[] };
   }>;
 }
