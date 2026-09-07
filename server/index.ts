@@ -10,7 +10,8 @@ export function createServer() {
   const app = express();
 
   app.disable("x-powered-by");
-  app.use(cors(process.env.APP_ORIGIN ? { origin: process.env.APP_ORIGIN, credentials: true } : { origin: false }));
+  const isProduction = process.env.NODE_ENV === "production";
+  app.use(cors(isProduction && process.env.APP_ORIGIN ? { origin: process.env.APP_ORIGIN, credentials: true } : { origin: true, credentials: true }));
   app.use(express.json({ limit: "30mb" }));
   app.use(express.urlencoded({ extended: true, limit: "1mb" }));
   app.use((_req, res, next) => {

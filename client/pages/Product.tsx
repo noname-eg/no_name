@@ -11,22 +11,31 @@ export default function Product() {
   const { catalog, addToCart, liked, toggleLike, language, siteSettings } = useStore();
   const isEnglish = language === "en";
   const product = catalog.find((item) => item.id === id);
+  const [selectedThumbnail, setSelectedThumbnail] = useState(0);
+  const [quantity, setQuantity] = useState(1);
+  const [selectedColor, setSelectedColor] = useState<string>();
+  const [selectedSize, setSelectedSize] = useState<string>();
+  const [added, setAdded] = useState(false);
+
+  useEffect(() => {
+    setSelectedThumbnail(0);
+    setSelectedColor(undefined);
+    setSelectedSize(undefined);
+    setAdded(false);
+  }, [product?.id]);
+
   if (!product) return <NotFound />;
   const productName = getProductName(product, language);
   const productDescription = (isEnglish ? product.descriptionEn : product.description) || (isEnglish ? "A thoughtful everyday piece designed for comfort, ease, and effortless styling." : "قطعة مصممة عشان تكمل يومك بسهولة. خامة مريحة وقصّة مدروسة، تتلبس بطريقتك وفي كل مناسبة.");
   const galleryImages = product.images?.length ? product.images.slice(0, 5) : [product.image, product.image, product.image];
-  const [selectedThumbnail, setSelectedThumbnail] = useState(0);
-  const [quantity, setQuantity] = useState(1);
   const availableColors = product.variants?.length ? [...new Set(product.variants.filter((variant) => variant.active).map((variant) => variant.color))] : (product.colors?.length ? product.colors : ["#eeeae0", "#202320"]);
-  const [selectedColor, setSelectedColor] = useState(availableColors[0]);
-  const availableSizes = product.variants?.length ? [...new Set(product.variants.filter((variant) => variant.active && variant.color === selectedColor).map((variant) => variant.size))] : (product.sizes === undefined ? sizes : product.sizes);
-  const [selectedSize, setSelectedSize] = useState(availableSizes[0] || "L");
-  const [added, setAdded] = useState(false);
+  const activeColor = selectedColor && availableColors.includes(selectedColor) ? selectedColor : availableColors[0];
+  const availableSizes = product.variants?.length ? [...new Set(product.variants.filter((variant) => variant.active && variant.color === activeColor).map((variant) => variant.size))] : (product.sizes === undefined ? sizes : product.sizes);
+  const activeSize = selectedSize && availableSizes.includes(selectedSize) ? selectedSize : (availableSizes[0] || "L");
   const index = catalog.indexOf(product);
-  useEffect(() => { setSelectedThumbnail(0); }, [product.id]);
 
   const add = () => {
-    for (let count = 0; count < quantity; count += 1) addToCart(product, { size: selectedSize, color: selectedColor });
+    for (let count = 0; count < quantity; count += 1) addToCart(product, { size: activeSize, color: activeColor });
     setAdded(true);
   };
 
@@ -74,12 +83,12 @@ export default function Product() {
 
             <div className="mt-6 border-b border-black/10 pb-6">
               <div className="mb-3 flex items-center justify-between">
-                <span className="text-[12px] font-semibold">{isEnglish ? "Color" : "اللون"}: <span className="font-normal text-black/60">{selectedColor}</span></span>
+                <span className="text-[12px] font-semibold">{isEnglish ? "Color" : "اللون"}: <span className="font-normal text-black/60">{activeColor}</span></span>
                 <button className="text-[10px] text-black/45 underline">{isEnglish ? "Size guide" : "دليل المقاسات"}</button>
               </div>
               <div className="flex gap-2">
                 {availableColors.map((color) => (
-                  <button key={color} onClick={() => setSelectedColor(color)} className={`flex items-center gap-2 rounded-full border px-3 py-2 text-[10px] ${selectedColor === color ? "border-black" : "border-black/10"}`}>
+                  <button key={color} onClick={() => { setSelectedColor(color); setSelectedSize(undefined); }} className={`flex items-center gap-2 rounded-full border px-3 py-2 text-[10px] ${activeColor === color ? "border-black" : "border-black/10"}`}>
                     <span className="h-4 w-4 rounded-full border border-black/15" style={{ backgroundColor: color }} />{color}
                   </button>
                 ))}
@@ -93,7 +102,7 @@ export default function Product() {
               </div>
               <div className="flex flex-wrap gap-2">
                 {availableSizes.map((size) => (
-                  <button key={size} onClick={() => setSelectedSize(size)} className={`min-w-[48px] rounded-[3px] border px-3 py-2.5 text-[10px] transition ${selectedSize === size ? "border-black bg-black text-white" : "border-black/15 hover:border-black"}`}>{size}</button>
+                  <button key={size} onClick={() => setSelectedSize(size)} className={`min-w-[48px] rounded-[3px] border px-3 py-2.5 text-[10px] transition ${activeSize === size ? "border-black bg-black text-white" : "border-black/15 hover:border-black"}`}>{size}</button>
                 ))}
               </div>
             </div>
