@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { seedProducts } from "@shared/seed-products";
 import { ArrowLeft, Facebook, Instagram, Menu, MessageCircle, Music2, Search, ShoppingBag, X, Youtube } from "lucide-react";
 
 export const products = [
@@ -175,6 +176,7 @@ export function StoreLayout({ children }: { children: ReactNode }) {
     if (location.pathname !== "/shop") return false;
     return new URLSearchParams(location.search).toString() === new URLSearchParams(query).toString();
   };
+  const previewCatalog = seedProducts.map((product) => ({ ...product, stock: 10, lowStockThreshold: 3, colors: ["#222222"], sizes: ["S", "M", "L"] })) as StoreProduct[];
   useEffect(() => {
     let cancelled = false;
     fetch("/api/products")
@@ -185,12 +187,19 @@ export function StoreLayout({ children }: { children: ReactNode }) {
       })
       .then((data) => {
         if (cancelled) return;
-        setCatalog((data?.products || []).map((product) => ({ ...product, stock: product.stock ?? 0, lowStockThreshold: product.lowStockThreshold ?? 3 })));
+        const products = (data?.products || []).map((product) => ({ ...product, stock: product.stock ?? 0, lowStockThreshold: product.lowStockThreshold ?? 3 }));
+        setCatalog(import.meta.env.DEV && products.length === 0 ? previewCatalog : products);
         setCatalogStatus("ready");
         setCatalogError("");
       })
       .catch((error: unknown) => {
         if (cancelled) return;
+        if (import.meta.env.DEV) {
+          setCatalog(previewCatalog);
+          setCatalogStatus("ready");
+          setCatalogError("");
+          return;
+        }
         setCatalogStatus("error");
         setCatalogError(error instanceof Error ? error.message : "Unable to load products.");
       });
