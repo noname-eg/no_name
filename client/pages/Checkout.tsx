@@ -21,6 +21,7 @@ export default function Checkout() {
   const { cartItems, siteSettings, addOrder, clearCart, language, coupons, appliedCouponCode } = useStore();
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
   const isEnglish = language === "en";
   const [form, setForm] = useState<CheckoutForm>({ customerName: "", phone: "", address: "", notes: "" });
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cod");
@@ -79,7 +80,7 @@ export default function Checkout() {
     }
     const response = await fetch("/api/orders", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
+      headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
       body: JSON.stringify({
         customerName: form.customerName.trim(), phone: form.phone.trim(), address: form.address.trim(), notes: form.notes.trim(),
         paymentMethod, transferNumber: paymentMethod === "cod" ? undefined : transferNumber, receipt: receiptToken,

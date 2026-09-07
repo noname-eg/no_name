@@ -6,9 +6,9 @@
 
 ## ما تم تنفيذه
 
-- تسجيل دخول الإدارة باستخدام `admin_users` وهاش `scrypt` وجلسة `HttpOnly`.
+- تسجيل دخول الإدارة باستخدام Supabase Auth و`admin_profiles` وجلسة `HttpOnly`.
 - مسارات الإدارة الأساسية في `server/auth.ts`.
-- migration موحدة في `supabase/migrations/001_admin_security.sql`.
+- migrations مرتبة للمخطط والمصادقة والإيصالات والوسائط، وآخرها `006_variant_order_stock.sql` لتوحيد خصم مخزون المتغيرات.
 - جداول المنتجات، الإعدادات، الأقسام، الصفحات، الكوبونات، الطلبات، عناصر الطلب، ملفات العملاء، وسجلات التدقيق.
 - `POST /api/orders` مع إعادة حساب السعر والمخزون والكوبون على الخادم.
 - `Idempotency-Key` لمنع إنشاء الطلب أكثر من مرة.
@@ -16,9 +16,9 @@
 - CRUD محمي للمنتجات والإعدادات والأقسام والصفحات والكوبونات.
 - APIs قراءة المنتجات والإعدادات والأقسام والصفحات والكوبونات.
 - رفع إيصالات الدفع إلى Supabase Storage داخل bucket خاص باسم `receipts`.
-- استرجاع ملخص الطلب بعد تحديث الصفحة باستخدام رقم الطلب ورقم الهاتف.
+- استرجاع ملخص الطلب بعد تحديث الصفحة باستخدام access token قصير العمر محفوظ في sessionStorage أو جلسة العميل.
 - تصدير واستيراد بيانات `localStorage` القديمة من لوحة التحكم.
-- تخطي الطلبات القديمة تلقائيًا أثناء الترحيل لأنها ليست سجلات مالية موثوقة.
+- ترحيل الطلبات القديمة عبر endpoint محمي مع رفض السجلات غير الصالحة وإرجاع تفاصيل الرفض.
 
 ## المسارات المهمة
 
@@ -40,7 +40,7 @@ GET  /api/pages
 GET  /api/coupons
 POST /api/order-receipts
 POST /api/orders
-GET  /api/orders/:orderNumber?phone=...
+GET  /api/orders/:orderNumber?token=...
 ```
 
 ### الإدارة
@@ -59,6 +59,10 @@ PATCH  /api/admin/orders/:id
 POST   /api/admin/migrate
 POST   /api/admin/seed-products
 POST   /api/admin/product-images
+POST   /api/admin/product-videos
+GET    /api/admin/orders/:id
+GET    /api/admin/orders/:id/receipt-url
+POST   /api/admin/products/:id/inventory
 ```
 
 مسارات الإدارة محمية بجلسة الإدارة ولا تعتمد على إخفاء الأزرار في React فقط.
@@ -86,7 +90,6 @@ dist/server/node-build.mjs
 
 ```env
 SUPABASE_URL=https://<project-ref>.supabase.co
-SUPABASE_ANON_KEY=<public-auth-key>
 SUPABASE_SERVICE_ROLE_KEY=<server-only-key>
 APP_ORIGIN=https://your-production-domain.example
 NODE_ENV=production
@@ -105,15 +108,17 @@ NODE_ENV=production
 - `client/pages/Checkout.tsx`: رفع الإيصال وإنشاء الطلب.
 - `client/pages/OrderSummary.tsx`: استرجاع الطلب.
 - `client/lib/store-migration.ts`: أدوات الترحيل.
-- `supabase/migrations/001_admin_security.sql`: مخطط Supabase ودالة الطلب وbucket الإيصالات.
-- `supabase/migrations/004_product_images.sql`: bucket صور المنتجات العامة.
+- `supabase/migrations/001_admin_security.sql`: الجداول الأساسية ودالة الطلب.
+- `supabase/migrations/005_order_access_and_receipts.sql`: الوصول الآمن للطلب ورفع الإيصالات.
+- `supabase/migrations/20260324_store_media_variants.sql`: وسائط المنتجات وvariants.
+- `supabase/migrations/006_variant_order_stock.sql`: التسعير والشحن وخصم مخزون variants داخل transaction.
 - `.env.example`: أسماء متغيرات البيئة فقط.
 
 ## ما يزال مفتوحًا قبل الإطلاق
 
 - تطبيق Supabase migrations فعليًا على مشروع جديد واختبار RLS وStorage.
-- استبدال fallback القديم من `localStorage` بعد التأكد من اكتمال الترحيل.
-- اختبار زرع المنتجات الـ36 مرة واحدة ثم تعديل منتج وصورة من لوحة التحكم.
+- إبقاء localStorage للسلة واللغة فقط، مع اختبار زرع المنتجات الـ36 مرة واحدة ثم تعديل منتج وصورة من لوحة التحكم.
+- اختبار حفظ variants متعددة الألوان والمقاسات وخصمها من المخزون.
 - تدوير أي مفتاح `service_role` تم كشفه سابقًا.
 - اختبار Netlify Function وبيئة الإنتاج الفعلية.
 - إضافة اختبارات integration وsecurity للـ APIs.

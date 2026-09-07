@@ -18,23 +18,23 @@
 - تسجيل الإدارة يتم عبر Supabase Auth، والصلاحيات من `admin_profiles`؛ لا يوجد hash مخصص في مسار الدخول.
 - المنتجات قابلة للإضافة والتعديل والأرشفة عبر APIs محمية.
 - الإعدادات والأقسام والصفحات والكوبونات تحفظ عبر APIs محمية.
-- الطلبات تظهر في لوحة الإدارة ويمكن تحديث حالتها.
+- الطلبات تظهر في تبويب مستقل داخل لوحة الإدارة ويمكن تصفيتها وتحديث حالتها، مع استثناء المرفوض من إجمالي المبيعات.
 - العمليات الإدارية تسجل في `audit_logs`.
 
 ### الطلبات
 
 - checkout يرسل IDs المنتجات والكميات فقط تقريبًا، ولا يعتمد الخادم على السعر القادم من المتصفح.
 - السعر والخصم والشحن والمخزون يعاد حسابها داخل SQL.
-- `Idempotency-Key` يمنع تكرار الطلب.
+- `Idempotency-Key` ثابت طوال محاولة checkout ويمنع تكرار الطلب عند إعادة الإرسال.
 - رفع الإيصال يتم إلى Storage خاص قبل إنشاء الطلب.
-- ملخص الطلب يسترجع من الخادم بعد refresh.
+- ملخص الطلب يسترجع من الخادم بعد refresh باستخدام access token الموجود في sessionStorage أو جلسة العميل.
 
 ### الترحيل
 
 - زر تصدير البيانات القديمة موجود في لوحة التحكم.
 - زر استيراد البيانات القديمة يرسل إلى `/api/admin/migrate`.
 - المنتجات والكوبونات والبيانات العامة تستخدم upsert.
-- الطلبات القديمة لا تستورد تلقائيًا.
+- الطلبات القديمة يمكن استيرادها عبر endpoint الترحيل، مع رفض السجلات غير الصالحة وإرجاع تفاصيلها.
 
 ## خطوات إعداد Supabase
 
@@ -46,13 +46,15 @@ supabase/migrations/001_admin_security.sql
 supabase/migrations/002_store_data.sql
 supabase/migrations/003_auth_and_customer_access.sql
 supabase/migrations/004_product_images.sql
+supabase/migrations/005_order_access_and_receipts.sql
+supabase/migrations/20260324_store_media_variants.sql
+supabase/migrations/006_variant_order_stock.sql
 ```
 
 3. أنشئ `.env` في جذر المشروع:
 
 ```env
 SUPABASE_URL=https://<project-ref>.supabase.co
-SUPABASE_ANON_KEY=<public-auth-key>
 SUPABASE_SERVICE_ROLE_KEY=<new-server-only-key>
 APP_ORIGIN=https://your-production-domain.example
 NODE_ENV=production
@@ -90,8 +92,8 @@ pnpm dev
 
 - واجهة Supabase Auth للعملاء.
 - سياسات RLS الخاصة بـ `customer_profiles` والطلبات حسب `auth.uid()`.
-- دعم اختيار المقاس واللون كمخزون منفصل عبر `product_variants`.
-- Signed URLs لعرض إيصالات الإدارة بدل الاحتفاظ بمسار خام في الواجهة.
+- دعم اختيار المقاس واللون مع خصم المخزون من JSON variants داخل transaction؛ التحول إلى جدول `product_variants` يبقى قرارًا لاحقًا.
+- Signed URLs لعرض إيصالات الإدارة مطبق في API، وتبقى واجهة فتح الإيصال ضمن اختبار الإنتاج.
 - rate limiting مركزي وCSRF/Origin protection.
 - اختبار الإنتاج ونسخ قاعدة البيانات الاحتياطية.
 - تدوير مفتاح `service_role` القديم من Supabase Dashboard.
