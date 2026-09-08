@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { useStore } from "./components/store/StoreLayout";
 import Index from "./pages/Index";
 import Shop from "./pages/Shop";
 import About, { InfoPage } from "./pages/About";
@@ -36,6 +37,18 @@ function AdminGate() {
   return status === "authenticated" ? <Admin /> : <Navigate to="/admin/login" replace />;
 }
 
+function TemplateHome() {
+  return useStore().siteSettings.activeTemplate === "new-design" ? <NewDesignHome /> : <Index />;
+}
+
+function TemplateShop() {
+  return useStore().siteSettings.activeTemplate === "new-design" ? <NewDesignShop /> : <Shop />;
+}
+
+function TemplateProduct() {
+  return useStore().siteSettings.activeTemplate === "new-design" ? <NewDesignProduct /> : <Product />;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -44,12 +57,12 @@ const App = () => (
       <BrowserRouter>
         <StoreLayout>
         <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/shop" element={<Shop />} />
+          <Route path="/" element={<TemplateHome />} />
+          <Route path="/shop" element={<TemplateShop />} />
           <Route path="/about" element={<About />} />
           <Route path="/shipping" element={<InfoPage type="shipping" />} />
           <Route path="/contact" element={<InfoPage type="contact" />} />
-          <Route path="/product/:id" element={<Product />} />
+          <Route path="/product/:id" element={<TemplateProduct />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/order-summary/:id" element={<OrderSummary />} />

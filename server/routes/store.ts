@@ -47,6 +47,7 @@ const productSchema = z.object({
   variants: z.array(z.object({ color: z.string().trim().min(1).max(30), size: z.string().trim().min(1).max(30), stock: z.number().int().nonnegative(), active: z.boolean().default(true) })).max(100).default([]),
 });
 const storeSettingsSchema = z.record(z.unknown()).superRefine((settings, context) => {
+  if (settings.activeTemplate !== undefined && settings.activeTemplate !== "classic" && settings.activeTemplate !== "new-design") context.addIssue({ code: z.ZodIssueCode.custom, path: ["activeTemplate"], message: "activeTemplate must be classic or new-design." });
   for (const key of ["shippingAmount", "freeShippingThreshold"]) {
     if (settings[key] !== undefined && (typeof settings[key] !== "number" || !Number.isFinite(settings[key]) || settings[key] < 0)) context.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: `${key} must be a non-negative number.` });
   }

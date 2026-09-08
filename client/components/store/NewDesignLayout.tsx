@@ -1,6 +1,7 @@
-import { ArrowUpRight, Menu, ShoppingBag } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useState } from "react";
+import { ArrowUpRight, Menu, ShoppingBag } from "lucide-react";
+
 import { useStore } from "./StoreLayout";
 
 export function NewDesignLayout({ children }: { children: React.ReactNode }) {
@@ -8,9 +9,10 @@ export function NewDesignLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const isEnglish = language === "en";
+  const basePath = location.pathname.startsWith("/new-design") ? "/new-design" : "";
   const links = [
-    { href: "/new-design", label: isEnglish ? "Home" : "الرئيسية" },
-    { href: "/new-design/shop", label: isEnglish ? "Collection" : "المجموعة" },
+    { href: `${basePath}/`, label: isEnglish ? "Home" : "الرئيسية" },
+    { href: `${basePath}/shop`, label: isEnglish ? "Collection" : "المجموعة" },
     { href: "/about", label: isEnglish ? "Our story" : "قصتنا" },
   ];
 
@@ -18,7 +20,7 @@ export function NewDesignLayout({ children }: { children: React.ReactNode }) {
     <div className="new-design-shell bg-[#e6e1d6] text-[#1c2822]">
       <header className="border-b border-[#1c2822]/15 px-5 py-5 lg:px-10">
         <div className="mx-auto flex max-w-[1320px] items-center justify-between gap-5">
-          <Link to="/new-design" className="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.24em]">
+          <Link to={basePath || "/"} className="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.24em]">
             <span className="grid h-9 w-9 place-items-center rounded-full bg-[#1c2822] text-[#e6e1d6]">NN</span>
             <span className="hidden sm:inline">No Name Studio</span>
           </Link>
@@ -37,7 +39,7 @@ export function NewDesignLayout({ children }: { children: React.ReactNode }) {
       <footer className="border-t border-[#1c2822]/15 px-5 py-12 lg:px-10">
         <div className="mx-auto flex max-w-[1320px] flex-col justify-between gap-8 sm:flex-row sm:items-end">
           <div><p className="font-serif text-3xl italic">A piece of you.</p><p className="mt-2 text-[11px] text-[#1c2822]/60">{siteSettings.announcement || (isEnglish ? "Made slowly in Egypt." : "مصنوعة بهدوء في مصر.")}</p></div>
-          <Link to="/new-design/shop" className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em]">{isEnglish ? "Explore collection" : "استكشفي المجموعة"}<ArrowUpRight size={15} /></Link>
+          <Link to={`${basePath}/shop`} className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em]">{isEnglish ? "Explore collection" : "استكشفي المجموعة"}<ArrowUpRight size={15} /></Link>
         </div>
       </footer>
     </div>
