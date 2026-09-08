@@ -47,7 +47,7 @@ supabase/migrations/002_store_data.sql
 supabase/migrations/003_auth_and_customer_access.sql
 supabase/migrations/004_product_images.sql
 supabase/migrations/005_order_access_and_receipts.sql
-supabase/migrations/20260324_store_media_variants.sql
+supabase/migrations/005a_store_media_variants.sql
 supabase/migrations/006_variant_order_stock.sql
 ```
 

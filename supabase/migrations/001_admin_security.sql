@@ -132,7 +132,9 @@ create table if not exists public.order_items (
   name text not null,
   quantity integer not null check (quantity > 0),
   unit_price numeric(12,2) not null check (unit_price >= 0),
-  total numeric(12,2) not null check (total >= 0)
+  total numeric(12,2) not null check (total >= 0),
+  size text,
+  color text
 );
 
 create index if not exists products_category_active_idx on public.products (category, active);

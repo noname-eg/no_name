@@ -110,7 +110,7 @@ NODE_ENV=production
 - `client/lib/store-migration.ts`: أدوات الترحيل.
 - `supabase/migrations/001_admin_security.sql`: الجداول الأساسية ودالة الطلب.
 - `supabase/migrations/005_order_access_and_receipts.sql`: الوصول الآمن للطلب ورفع الإيصالات.
-- `supabase/migrations/20260324_store_media_variants.sql`: وسائط المنتجات وvariants.
+- `supabase/migrations/005a_store_media_variants.sql`: وسائط المنتجات وvariants.
 - `supabase/migrations/006_variant_order_stock.sql`: التسعير والشحن وخصم مخزون variants داخل transaction.
 - `.env.example`: أسماء متغيرات البيئة فقط.
 
