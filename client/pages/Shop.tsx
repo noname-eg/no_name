@@ -1,9 +1,8 @@
 import { useMemo, useState } from "react";
 import { ChevronDown, SlidersHorizontal } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
-import { getProductColors, getProductName, ProductCard, useStore } from "@/components/store/StoreLayout";
+import { defaultStoreCategories, getProductColors, getProductName, ProductCard, useStore } from "@/components/store/StoreLayout";
 
-const filters = ["All pieces", "Sets", "Skirts / pants", "Blouses / shirts", "Denims", "Dresses"];
 const categoryNames: Record<string, { ar: string; en: string }> = {
   "All pieces": { ar: "All pieces", en: "All pieces" },
   Sets: { ar: "Sets", en: "Sets" },
@@ -25,8 +24,9 @@ const filterOptions = {
 
 export default function Shop() {
   const [params, setParams] = useSearchParams();
-  const { catalog, catalogStatus, catalogError, language, sections } = useStore();
+  const { catalog, catalogStatus, catalogError, language, sections, siteSettings } = useStore();
   const isEnglish = language === "en";
+  const filters = ["All pieces", ...(siteSettings.categories?.length ? siteSettings.categories : defaultStoreCategories)];
   const [openFilter, setOpenFilter] = useState<string | null>(null);
   const [selectedColor, setSelectedColor] = useState("");
   const selected = params.get("category") || "All pieces";
