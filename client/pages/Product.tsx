@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, Heart, MessageCircle, Minus, Plus, ShoppingBag, Truck } from "lucide-react";
+import { Heart, MessageCircle, Minus, Plus, ShoppingBag } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { getCategoryName, getProductName, getProductPrice, ProductCard, useStore } from "@/components/store/StoreLayout";
 import NotFound from "./NotFound";
@@ -26,7 +26,7 @@ export default function Product() {
 
   if (!product) return <NotFound />;
   const productName = getProductName(product, language);
-  const productDescription = (isEnglish ? product.descriptionEn : product.description) || (isEnglish ? "A thoughtful everyday piece designed for comfort, ease, and effortless styling." : "قطعة مصممة عشان تكمل يومك بسهولة. خامة مريحة وقصّة مدروسة، تتلبس بطريقتك وفي كل مناسبة.");
+  const productDescription = (isEnglish ? product.descriptionEn : product.description) || "";
   const galleryImages = product.images?.length ? product.images.slice(0, 5) : [product.image, product.image, product.image];
   const availableColors = product.variants?.length ? [...new Set(product.variants.filter((variant) => variant.active).map((variant) => variant.color))] : (product.colors?.length ? product.colors : ["#eeeae0", "#202320"]);
   const activeColor = selectedColor && availableColors.includes(selectedColor) ? selectedColor : availableColors[0];
@@ -76,10 +76,6 @@ export default function Product() {
               </button>
             </div>
 
-            <div className="mt-5 space-y-2 rounded-[3px] bg-[#eff8ee] px-4 py-3 text-[10px] leading-6 text-[#3f7545]">
-              {(isEnglish ? siteSettings.shippingMessageEn : siteSettings.shippingMessageAr) && <p><Check className="ml-1 inline-block" size={13} /> {isEnglish ? siteSettings.shippingMessageEn : siteSettings.shippingMessageAr}</p>}
-              <p><Truck className="ml-1 inline-block" size={13} /> {isEnglish ? "Ready to ship within 2–48 hours" : "متوفر للشحن خلال ٢–٤٨ ساعة"}</p>
-            </div>
 
             <div className="mt-6 border-b border-black/10 pb-6">
               <div className="mb-3 flex items-center justify-between">
@@ -107,10 +103,6 @@ export default function Product() {
               </div>
             </div>
 
-            <div className="mt-5 rounded-[4px] bg-[#fff7eb] px-4 py-3 text-[10px] leading-6 text-[#94612e]">
-              <span className="ml-1">⏳</span> {isEnglish ? "More than 5 shoppers are viewing this piece" : "أكثر من ٥ عميلات يشاهدن هذا المنتج الآن"}
-            </div>
-
             <div className="mt-5 flex gap-2">
               <div className="flex h-12 items-center rounded-[4px] border border-black/15">
                 <button onClick={() => setQuantity((value) => Math.max(1, value - 1))} className="flex h-full w-10 items-center justify-center" aria-label={isEnglish ? "Decrease quantity" : "تقليل الكمية"}><Minus size={14} /></button>
@@ -123,37 +115,16 @@ export default function Product() {
             </div>
             <Link to="/cart" className="mt-3 flex h-12 items-center justify-center rounded-[4px] border border-black/60 text-[12px] font-medium transition hover:bg-black hover:text-white">{isEnglish ? "Buy now" : "اشتري الآن"}</Link>
 
-            <div className="mt-5 flex items-center justify-center gap-3 text-[9px] text-black/50">
-              <span className="h-4 w-7 rounded-sm border border-black/20 bg-[#e9e9e9]" />
-              <span className="h-4 w-7 rounded-sm border border-black/20 bg-[#f6d9a5]" />
-              <span className="h-4 w-7 rounded-sm border border-black/20 bg-[#c9dcf2]" />
-              {isEnglish ? "Secure encrypted payment" : "دفع آمن ومشفر"}
-            </div>
-
             <div className="mt-7 border-t border-black/10 pt-6">
               <h2 className="mb-4 text-[13px] font-semibold">{isEnglish ? "Description" : "الوصف"}</h2>
               <p className="text-[11px] leading-7 text-black/65">{productDescription}</p>
-              <ul className="mt-3 space-y-1 text-[11px] leading-6 text-black/65">
-                {(isEnglish ? siteSettings.madeInMessageEn : siteSettings.madeInMessageAr) && <li>• {isEnglish ? siteSettings.madeInMessageEn : siteSettings.madeInMessageAr}</li>}
-                <li>• {isEnglish ? "Comfortable fabric for everyday wear" : "خامة مريحة ومناسبة للاستخدام اليومي"}</li>
-              </ul>
+              {(isEnglish ? siteSettings.madeInMessageEn : siteSettings.madeInMessageAr) && <p className="mt-3 text-[11px] leading-6 text-black/65">{isEnglish ? siteSettings.madeInMessageEn : siteSettings.madeInMessageAr}</p>}
             </div>
 
-            <div className="mt-8 border-t border-black/10 pt-5">
-              <div className="flex gap-5 border-b border-black/10 text-[11px] font-semibold">
-                <button className="border-b-2 border-black pb-3">{isEnglish ? "Shipping" : "شحن"}</button>
-                <button className="pb-3 text-black/45">{isEnglish ? "Returns" : "المرتجعات"}</button>
-              </div>
-              <div className="pt-5 text-[10px] leading-7 text-black/70">
-                <p className="font-semibold text-black">{isEnglish ? "Fast, reliable delivery" : "توصيل سريع وموثوق"}</p>
-                <ul className="mt-2 list-disc space-y-0.5 pr-5">
-                  <li>{isEnglish ? "Delivery across Egypt" : "التوصيل في جميع أنحاء مصر"}</li>
-                  <li>{isEnglish ? "Orders ship within 2–5 business days" : "يتم شحن الطلبات خلال ٢–٥ أيام عمل"}</li>
-                  <li>{isEnglish ? "Packed safely to protect your piece" : "تم تغليفها بطريقة آمنة للحفاظ على القطعة"}</li>
-                </ul>
-                {(isEnglish ? siteSettings.returnsMessageEn : siteSettings.returnsMessageAr) && <p className="mt-4">{isEnglish ? siteSettings.returnsMessageEn : siteSettings.returnsMessageAr}</p>}
-              </div>
-            </div>
+            {(isEnglish ? siteSettings.shippingMessageEn : siteSettings.shippingMessageAr) || (isEnglish ? siteSettings.returnsMessageEn : siteSettings.returnsMessageAr) ? <div className="mt-8 border-t border-black/10 pt-5 text-[10px] leading-7 text-black/70">
+              {(isEnglish ? siteSettings.shippingMessageEn : siteSettings.shippingMessageAr) && <p>{isEnglish ? siteSettings.shippingMessageEn : siteSettings.shippingMessageAr}</p>}
+              {(isEnglish ? siteSettings.returnsMessageEn : siteSettings.returnsMessageAr) && <p className="mt-4">{isEnglish ? siteSettings.returnsMessageEn : siteSettings.returnsMessageAr}</p>}
+            </div> : null}
 
             <div className="mt-10">
               <p className="mb-4 text-[10px] font-semibold text-black/65">{isEnglish ? "Complete the look" : "أكملي الإطلالة"}</p>
