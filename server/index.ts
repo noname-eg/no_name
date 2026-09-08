@@ -11,7 +11,11 @@ export function createServer() {
 
   app.disable("x-powered-by");
   const isProduction = process.env.NODE_ENV === "production";
-  app.use(cors(isProduction && process.env.APP_ORIGIN ? { origin: process.env.APP_ORIGIN, credentials: true } : { origin: true, credentials: true }));
+  const appOrigin = process.env.APP_ORIGIN?.trim();
+  if (isProduction && (!appOrigin || !/^https:\/\/[^/]+$/.test(appOrigin))) {
+    throw new Error("APP_ORIGIN must be a single HTTPS origin in production");
+  }
+  app.use(cors(isProduction ? { origin: appOrigin, credentials: true } : { origin: true, credentials: true }));
   app.use(express.json({ limit: "30mb" }));
   app.use(express.urlencoded({ extended: true, limit: "1mb" }));
   app.use((_req, res, next) => {
