@@ -8,7 +8,7 @@ const sizes = ["S", "M", "L", "XL", "XXL"];
 
 export default function Product() {
   const { id } = useParams();
-  const { catalog, addToCart, liked, toggleLike, language, siteSettings } = useStore();
+  const { catalog, addToCart, liked, toggleLike, language, siteSettings, pageSettings } = useStore();
   const isEnglish = language === "en";
   const product = catalog.find((item) => item.id === id);
   const [selectedThumbnail, setSelectedThumbnail] = useState(0);
@@ -121,10 +121,10 @@ export default function Product() {
               {(isEnglish ? siteSettings.madeInMessageEn : siteSettings.madeInMessageAr) && <p className="mt-3 text-[11px] leading-6 text-black/65">{isEnglish ? siteSettings.madeInMessageEn : siteSettings.madeInMessageAr}</p>}
             </div>
 
-            {(isEnglish ? siteSettings.shippingMessageEn : siteSettings.shippingMessageAr) || (isEnglish ? siteSettings.returnsMessageEn : siteSettings.returnsMessageAr) ? <div className="mt-8 border-t border-black/10 pt-5 text-[10px] leading-7 text-black/70">
-              {(isEnglish ? siteSettings.shippingMessageEn : siteSettings.shippingMessageAr) && <p>{isEnglish ? siteSettings.shippingMessageEn : siteSettings.shippingMessageAr}</p>}
-              {(isEnglish ? siteSettings.returnsMessageEn : siteSettings.returnsMessageAr) && <p className="mt-4">{isEnglish ? siteSettings.returnsMessageEn : siteSettings.returnsMessageAr}</p>}
-            </div> : null}
+            <div className="mt-8 border-t border-black/10 pt-5 text-[10px] leading-7 text-black/70">
+              <h2 className="mb-3 text-[13px] font-semibold">{isEnglish ? pageSettings.shipping.titleEn : pageSettings.shipping.titleAr}</h2>
+              <p className="whitespace-pre-line">{isEnglish ? pageSettings.shipping.contentEn : pageSettings.shipping.contentAr}</p>
+            </div>
 
             <div className="mt-10">
               <p className="mb-4 text-[10px] font-semibold text-black/65">{isEnglish ? "Complete the look" : "أكملي الإطلالة"}</p>
